@@ -1,0 +1,83 @@
+/* Main Container Padding */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Premium Button Styling */
+div.stButton > button {
+    width: 100%;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Custom coloring for the primary action button (Analyze) */
+div.stButton > button:active {
+    transform: scale(0.98);
+}
+
+/* Chapter Selection Pills (using radio or similar logic, styling them) */
+/* This targets Streamlit's internal classes for radio buttons if we use them horizontally as 'pills' */
+div[role="radiogroup"] > label {
+    background-color: #262730;
+    border: 1px solid #41424C;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    margin-right: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+    color: #FAFAFA !important; /* Force white text */
+}
+
+div[role="radiogroup"] > label:hover {
+    border-color: #FF4B4B;
+    background-color: #31333F;
+}
+
+/* Ensure the internal p tag also inherits white */
+div[role="radiogroup"] > label p {
+    color: #FAFAFA !important;
+    font-weight: 500;
+}
+
+/* Verse Checkbox Styling */
+.stCheckbox {
+    padding: 0.5rem;
+    border-bottom: 1px solid #31333F;
+}
+
+.stCheckbox:last-child {
+    border-bottom: none;
+}
+
+/* Right Panel Markdown Area */
+.agent-result-container {
+    background-color: #0E1117;
+    border: 1px solid #31333F;
+    border-radius: 10px;
+    padding: 2rem;
+    min-height: 300px;
+    max-height: 65vh; /* Fixed height for internal scroll */
+    overflow-y: auto; /* Enable internal scroll */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Markdown Headers in Result */
+.agent-result-container h1 {
+    color: #FF4B4B;
+    font-size: 2rem;
+    border-bottom: 2px solid #31333F;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.agent-result-container h2 {
+    color: #FAFAFA;
+    margin-top: 1.5rem;
+}
+
+/* Hide default menu and footer for cleaner look */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
