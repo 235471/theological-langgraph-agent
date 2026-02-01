@@ -9,6 +9,28 @@
 
 A sophisticated theological analysis system that leverages **LangGraph's multi-agent orchestration** to provide comprehensive biblical exegesis through parallel agent execution and structured synthesis.
 
+## 🎯 Why This Project?
+
+Biblical exegesis traditionally requires hours of manual research across:
+- Lexicons (Strong's, BDB, Louw-Nida)
+- Theological commentaries
+- Historical context
+- Intertextual references
+
+**This system automates multi-dimensional analysis while maintaining academic rigor.**
+
+**Problem Solved:**
+- ❌ Time-consuming manual research
+- ❌ Inconsistent methodology
+- ❌ Limited accessibility for non-scholars
+
+**Solution:**
+- ✅ 2-minute comprehensive analysis
+- ✅ Structured theological validation
+- ✅ Academic-grade output for anyone
+
+**Real-World Impact:** Enables pastors, seminary students, and Bible study leaders to produce scholarship-level insights without extensive theological training.
+
 ## 🌟 Key Features
 
 ### Multi-Agent Architecture
@@ -248,6 +270,35 @@ get_synthesizer_model() → gemini-3-flash-preview
 - **Scrollable Containers**: Independent verse list and results scrolling
 - **Dark Theme**: Premium aesthetic with glassmorphism effects
 
+## 📄 Output Example
+
+**Input:**
+```json
+{
+  "book": "João",
+  "chapter": 8,
+  "verses": [31, 32, 33, 34],
+  "selected_modules": ["panorama", "exegese", "teologia"]
+}
+```
+
+**Output Preview:**
+
+### A Verdadeira Liberdade: Discipulado, Verdade e a Quebra das Correntes do Pecado
+
+#### Contextualização
+Situada no "Livro dos Sinais" (João 1-12), esta perícope ocorre após o sinal da cura do cego de nascença...
+
+#### Exegese Lexical
+**Permanência (μένω - menō):** Subjuntivo aoristo indicando estado contínuo de habitação. O verdadeiro discípulo faz da Palavra de Cristo sua residência permanente...
+
+#### Intertextualidade
+Jesus atua como o Novo Libertador, ecoando Êxodo 20:2. Enquanto Deus tirou Israel da "casa da escravidão" física, Jesus liberta da escravidão espiritual...
+
+**[Full output (3,500 words) available in `examples/joao-8v31-34.md`]**
+
+**Analysis Time:** 127 seconds  
+**LangSmith Trace:** [View execution graph](https://smith.langchain.com/public/e7ebfab8-20bc-45ef-b049-1cc9a109c2aa/r)
 ## 📊 Project Structure
 
 ```
