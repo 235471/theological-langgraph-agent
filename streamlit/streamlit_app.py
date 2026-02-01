@@ -1,7 +1,24 @@
 import streamlit as st
+import os
+from dotenv import load_dotenv
 from bible_books import BOOKS
 from api_client import api_client
 import time
+
+# --- Environment & Tracing Setup ---
+# 1. Load local .env (for local dev)
+load_dotenv()
+
+# 2. Sync Streamlit Secrets to Environment (for Cloud deployment)
+# LangChain/LangGraph looks for LANGCHAIN_TRACING_V2 etc. in os.environ
+if "LANGCHAIN_TRACING_V2" in st.secrets:
+    for key, value in st.secrets.items():
+        if (
+            key.startswith("LANGCHAIN_")
+            or key == "GOOGLE_API_KEY"
+            or key == "LANGSMITH_API_KEY"
+        ):
+            os.environ[key] = str(value)
 
 # --- Page Configuration ---
 st.set_page_config(
