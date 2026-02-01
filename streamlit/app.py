@@ -156,32 +156,24 @@ with left_panel:
                 v["number"] for v in st.session_state.chapter_data
             ]
 
-        # Verse List
-        # Iterate and create checkboxes
-        # Note: In streamlit, iterating checkboxes inside a form or keeping state requires care.
-        # We will update the selected_verses_ids list based on checkbox state.
-
+        # Native scrollable container for verses
         current_selection = []
-        for verse in st.session_state.chapter_data:
-            v_num = verse["number"]
-            v_text = verse["text"]
+        with st.container(height=500):
+            for verse in st.session_state.chapter_data:
+                v_num = verse["number"]
+                v_text = verse["text"]
 
-            # Check if this verse is currently in our managed list
-            is_checked = v_num in st.session_state.selected_verses_ids
+                # Check if this verse is currently in our managed list
+                is_checked = v_num in st.session_state.selected_verses_ids
 
-            # Display: Checkbox + Text
-            # We use cols to align check and text neatly
-            v_col1, v_col2 = st.columns([0.15, 0.85])
-            if v_col1.checkbox(f"{v_num}", value=is_checked, key=f"v_{v_num}"):
-                current_selection.append(v_num)
+                # Display: Checkbox + Text
+                v_col1, v_col2 = st.columns([0.15, 0.85])
+                if v_col1.checkbox(f"{v_num}", value=is_checked, key=f"v_{v_num}"):
+                    current_selection.append(v_num)
 
-            v_col2.caption(f"**{v_num}** {v_text}")
+                v_col2.caption(f"**{v_num}** {v_text}")
 
-        # Update state with the manual selections from this render cycle
-        # Note: This simple logic overwrites "Select All" on interaction, which is acceptable logic.
-        # Ideally "Select All" would just update the default value of these checkboxes,
-        # but Streamlit immediate mode makes that tricky without callback overhead.
-        # For this MVP, we rely on the user interacting with the checkboxes directly or using the toggle carefully.
+        # Update state
         st.session_state.selected_verses_ids = current_selection
 
     else:

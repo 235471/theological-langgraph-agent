@@ -1,10 +1,22 @@
+"""
+Analysis Controller
+
+Thin controller layer that handles HTTP concerns and delegates
+business logic to the analysis service.
+"""
+
+import logging
 from fastapi import APIRouter, HTTPException
+from fastapi.concurrency import run_in_threadpool
+
 from app.schemas import AnalyzeRequest, AnalyzeResponse
-from app.service.bible_service import get_book_by_abbrev, get_specific_verses
+from app.service.bible_service import get_book_by_abbrev
+from app.service.analysis_service import (
+    AnalysisInput,
+    run_analysis,
+)
 
-# Import the agent builder (uncomment when agent is ready)
-# from app.agent.build import build_graph
-
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Analysis"])
 
 
@@ -26,14 +38,14 @@ async def analyze_text(request: AnalyzeRequest):
     For "Full" mode, send all modules: ["panorama", "exegese", "teologia"]
     For "Custom" mode, send at least one module.
     """
-    # Validate book exists
+    # --- Validation Layer ---
     book = get_book_by_abbrev(request.book)
     if not book:
         raise HTTPException(
-            status_code=404, detail=f"Book with abbreviation '{request.book}' not found"
+            status_code=404,
+            detail=f"Book with abbreviation '{request.book}' not found",
         )
 
-    # Validate chapter exists
     total_chapters = len(book.get("chapters", []))
     if request.chapter < 1 or request.chapter > total_chapters:
         raise HTTPException(
@@ -41,67 +53,34 @@ async def analyze_text(request: AnalyzeRequest):
             detail=f"Invalid chapter {request.chapter}. Book has {total_chapters} chapters.",
         )
 
-    # Get the actual verse texts for context
-    verse_texts = get_specific_verses(request.book, request.chapter, request.verses)
+    # --- Service Layer Delegation ---
+    input_data = AnalysisInput(
+        book=request.book,
+        chapter=request.chapter,
+        verses=request.verses,
+        selected_modules=request.selected_modules,
+    )
 
-    if not verse_texts:
+    # Run the heavy agent analysis in a background thread to keep API responsive
+    try:
+        result = await run_in_threadpool(run_analysis, input_data)
+    except Exception as e:
+        import traceback
+
+        error_msg = f"Analysis failed: {str(e)}"
+        logger.error(error_msg)
+        logger.error(traceback.format_exc())
         raise HTTPException(
-            status_code=400, detail="No valid verses found for the given verse numbers."
+            status_code=500,
+            detail=f"Agent execution failed: {str(e)}",
         )
 
-    # Prepare state for the agent
-    # Map input module names to agent's expected module names
-    module_mapping = {
-        "panorama": "panorama",
-        "exegese": "exegese",  # maps to lexical_agent
-        "teologia": "historical",  # maps to historical_agent (teologia histórica)
-    }
+    # --- Response Handling ---
+    if not result.success:
+        logger.error(f"Analysis returned failure: {result.error}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Agent execution failed: {result.error}",
+        )
 
-    agent_modules = [module_mapping.get(m, m) for m in request.selected_modules]
-
-    initial_state = {
-        "bible_book": request.book,
-        "chapter": request.chapter,
-        "verses": [str(v) for v in request.verses],  # Agent expects string list
-        "selected_modules": agent_modules,
-        # Initialize output fields
-        "panorama_content": None,
-        "lexical_content": None,
-        "historical_content": None,
-        "intertextual_content": None,
-        "validation_content": None,
-        "final_analysis": None,
-    }
-
-    try:
-        # Build and run the graph
-        # graph = build_graph()
-        # result = graph.invoke(initial_state)
-        # final_analysis = result.get("final_analysis", "Analysis could not be completed.")
-
-        # --- MOCK RESPONSE FOR TESTING (remove when agent is connected) ---
-        final_analysis = f"""
-# Análise Teológica: {request.book.upper()} {request.chapter}:{request.verses}
-
-**Módulos Executados:** {', '.join(request.selected_modules)}
-
----
-
-## Resumo
-
-Esta é uma resposta de placeholder. O agente LangGraph ainda não está conectado.
-
-**Versículos analisados:**
-
-{chr(10).join([f'- Versículo {i+1}: "{text}"' for i, text in enumerate(verse_texts)])}
-
----
-
-*Conecte o agente em `analyze_controller.py` para habilitar a análise real.*
-"""
-        # --- END MOCK ---
-
-        return AnalyzeResponse(final_analysis=final_analysis)
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Agent execution failed: {str(e)}")
+    return AnalyzeResponse(final_analysis=result.final_analysis)

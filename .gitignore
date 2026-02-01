@@ -3,6 +3,8 @@
 
 .env
 plan.pdf
+/streamlit/frontend.pdf
+/streamlit/frontend.png
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -102,6 +102,10 @@ Validar as conclusões obtidas até agora.
 - Escatológico
 - Preservação de tensões dialéticas
 
+# Regras de Desenvolvimento
+- Identifique oportunidades de aprofundamento teológico.
+- Indique onde a síntese pode ser expandida sem violar o texto.
+
 # SAÍDA
 - Alertas
 - Pontos frágeis
@@ -120,6 +124,10 @@ Sintetizar os relatórios recebidos em um estudo bíblico completo.
 - Preserve tensões teológicas.
 - Derive aplicação da função da perícope.
 - Mantenha tom acadêmico e pastoral.
+- Desenvolva cada seção com profundidade acadêmica proporcional.
+- Quando possível, articule explicitamente conexões entre os relatórios.
+- Não seja conciso: priorize clareza e desenvolvimento argumentativo.
+
 
 # ESTRUTURA
 (Título → Introdução → Contextualização → Exegese → Teologia → Aplicação → Conclusão → Oração)

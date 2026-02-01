@@ -1,8 +1,14 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# Load environment variables for LangSmith and API Keys
+load_dotenv()
+
 from app.controller.bible_controller import router as bible_router
 from app.controller.analyze_controller import router as analyze_router
+from app.controller.debug_controller import router as debug_router
 
 app = FastAPI(
     title="Theological Agent API",
@@ -22,6 +28,7 @@ app.add_middleware(
 # Include routers
 app.include_router(bible_router)
 app.include_router(analyze_router)
+app.include_router(debug_router)
 
 
 @app.get("/", tags=["Health"])
