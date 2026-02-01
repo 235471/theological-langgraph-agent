@@ -2,9 +2,12 @@ import requests
 import os
 import sys
 
-# Tenta adicionar o diretório 'src' ao path para permitir imports diretos no Streamlit Cloud
+# Garante que a pasta 'src' está no PATH para o Direct-Call (Modo Cloud)
+# Usamos o caminho absoluto para evitar ambiguidades
 try:
-    sys.path.append(os.path.join(os.getcwd(), "src"))
+    src_path = os.path.join(os.getcwd(), "src")
+    if src_path not in sys.path:
+        sys.path.insert(0, src_path)  # Insere no início para ter prioridade
 except:
     pass
 
@@ -12,39 +15,37 @@ except:
 class APIClient:
     def __init__(self):
         # Em desenvolvimento local, usa o endereço do FastAPI
-        # No Streamlit Cloud, podemos sobrescrever isso via Secrets
         self.base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
         self.timeout = 120
 
     def get_verses(self, abbrev: str, chapter: int):
-        """Tenta buscar via API, se falhar tenta carregar localmente (Modo Cloud)."""
         try:
+            # Tenta API primeiro
             response = requests.get(
                 f"{self.base_url}/bible/{abbrev}/{chapter}/verses", timeout=5
             )
             if response.status_code == 200:
                 return response.json()
         except:
-            # Se a API falhar (não está rodando), tentamos usar o serviço diretamente
-            # Isso permite que o Streamlit Cloud funcione sem um backend FastAPI separado
+            # Fallback para execução direta (Streamlit Cloud)
             try:
                 from app.service.bible_service import get_verses
 
                 return get_verses(abbrev, chapter)
             except Exception as e:
-                print(f"Erro no modo Direct-Call: {e}")
+                print(f"Erro no modo Direct-Call (get_verses): {e}")
                 return []
 
     def analyze(self, payload: dict):
-        """Tenta enviar para a API, se falhar executa o agente localmente."""
         try:
+            # Tenta API primeiro
             response = requests.post(
                 f"{self.base_url}/analyze", json=payload, timeout=self.timeout
             )
             if response.status_code == 200:
                 return response.json().get("final_analysis", "")
         except:
-            # Modo Direct-Call (Invocação direta do Agente no mesmo processo do Streamlit)
+            # Fallback para execução direta (Streamlit Cloud)
             try:
                 from app.service.analysis_service import run_analysis, AnalysisInput
 
@@ -60,6 +61,9 @@ class APIClient:
                     return result.final_analysis
                 return f"Erro na análise direta: {result.error}"
             except Exception as e:
+                import traceback
+
+                print(traceback.format_exc())
                 return f"Erro ao tentar executar agente sem backend: {str(e)}"
 
 
