@@ -5,6 +5,9 @@
 plan.pdf
 /streamlit/frontend.pdf
 /streamlit/frontend.png
+.streamlit/secrets.toml
+QUICKSTART.md
+GITHUB_SETUP.md
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,69 +1,66 @@
-import os
 import requests
-from typing import List, Dict, Optional
+import os
+import sys
 
-# Backend API URL - can be overridden via environment variable
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+# Tenta adicionar o diretório 'src' ao path para permitir imports diretos no Streamlit Cloud
+try:
+    sys.path.append(os.path.join(os.getcwd(), "src"))
+except:
+    pass
 
 
-class ApiClient:
-    """Client for communicating with the Theological Agent API."""
+class APIClient:
+    def __init__(self):
+        # Em desenvolvimento local, usa o endereço do FastAPI
+        # No Streamlit Cloud, podemos sobrescrever isso via Secrets
+        self.base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+        self.timeout = 120
 
-    def __init__(self, base_url: str = API_BASE_URL):
-        self.base_url = base_url.rstrip("/")
-        self.session = requests.Session()
-        self.timeout = 120  # 2 minutes timeout for agent processing
-
-    def get_verses(self, book_abbrev: str, chapter: int) -> List[Dict]:
-        """
-        Fetch verses for a specific book and chapter.
-
-        GET /bible/{abbrev}/{chapter}/verses
-
-        Returns:
-            List of dicts: [{'number': int, 'text': str}, ...]
-        """
+    def get_verses(self, abbrev: str, chapter: int):
+        """Tenta buscar via API, se falhar tenta carregar localmente (Modo Cloud)."""
         try:
-            url = f"{self.base_url}/bible/{book_abbrev}/{chapter}/verses"
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            print(f"[API Error] get_verses failed: {e}")
-            # Return empty list on error to gracefully handle UI
-            return []
-
-    def analyze(self, payload: Dict) -> str:
-        """
-        Send analysis request to the agent.
-
-        POST /analyze
-
-        Payload: {
-            "book": str,
-            "chapter": int,
-            "verses": List[int],
-            "selected_modules": List[str]
-        }
-
-        Returns:
-            Markdown string with the analysis result.
-        """
-        try:
-            url = f"{self.base_url}/analyze"
-            response = self.session.post(url, json=payload, timeout=self.timeout)
-            response.raise_for_status()
-            result = response.json()
-            return result.get("final_analysis", "Análise não disponível.")
-        except requests.exceptions.Timeout:
-            return (
-                "❌ **Erro**: O tempo limite da análise foi excedido. Tente novamente."
+            response = requests.get(
+                f"{self.base_url}/bible/{abbrev}/{chapter}/verses", timeout=5
             )
-        except requests.exceptions.RequestException as e:
-            return f"❌ **Erro de conexão**: {str(e)}"
-        except Exception as e:
-            return f"❌ **Erro inesperado**: {str(e)}"
+            if response.status_code == 200:
+                return response.json()
+        except:
+            # Se a API falhar (não está rodando), tentamos usar o serviço diretamente
+            # Isso permite que o Streamlit Cloud funcione sem um backend FastAPI separado
+            try:
+                from app.service.bible_service import get_verses
+
+                return get_verses(abbrev, chapter)
+            except Exception as e:
+                print(f"Erro no modo Direct-Call: {e}")
+                return []
+
+    def analyze(self, payload: dict):
+        """Tenta enviar para a API, se falhar executa o agente localmente."""
+        try:
+            response = requests.post(
+                f"{self.base_url}/analyze", json=payload, timeout=self.timeout
+            )
+            if response.status_code == 200:
+                return response.json().get("final_analysis", "")
+        except:
+            # Modo Direct-Call (Invocação direta do Agente no mesmo processo do Streamlit)
+            try:
+                from app.service.analysis_service import run_analysis, AnalysisInput
+
+                input_data = AnalysisInput(
+                    book=payload["book"],
+                    chapter=payload["chapter"],
+                    verses=payload["verses"],
+                    selected_modules=payload["selected_modules"],
+                )
+
+                result = run_analysis(input_data)
+                if result.success:
+                    return result.final_analysis
+                return f"Erro na análise direta: {result.error}"
+            except Exception as e:
+                return f"Erro ao tentar executar agente sem backend: {str(e)}"
 
 
-# Singleton instance for easy import
-api_client = ApiClient()
+api_client = APIClient()

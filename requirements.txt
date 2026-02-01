@@ -1,0 +1,22 @@
+# Core Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+streamlit==1.41.1
+
+# LangChain & LangGraph
+langchain==0.3.14
+langchain-core==0.3.28
+langchain-google-genai==2.0.8
+langgraph==1.0.7
+
+# Data & Validation
+pydantic==2.12.0
+pydantic-core==2.27.2
+python-dotenv==1.0.1
+
+# HTTP Client
+httpx==0.28.1
+requests==2.32.3
+
+# Utilities
+typing-extensions==4.12.2
