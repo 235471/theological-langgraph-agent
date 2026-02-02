@@ -20,7 +20,7 @@ Streamlit Cloud provides free hosting for Streamlit apps with the following limi
 Ensure your repository has:
 - ✅ `requirements.txt` (generated below)
 - ✅ `.streamlit/config.toml` (generated below)
-- ✅ `streamlit/app.py` as main entry point
+- ✅ `streamlit/streamlit_app.py` as main entry point
 - ✅ `.gitignore` excluding `.env` and `venv/`
 
 ### Step 2: Push to GitHub
@@ -50,7 +50,7 @@ git push -u origin main
 2. **Connect Repository**
    - Repository: `yourusername/theological-langgraph-agent`
    - Branch: `main`
-   - Main file path: `streamlit/app.py`
+   - Main file path: `streamlit/streamlit_app.py`
 
 3. **Configure Secrets**
    Click "Advanced settings" → "Secrets" and add:
