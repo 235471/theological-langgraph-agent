@@ -21,6 +21,32 @@ from app.client.client import (
 )
 from app.agent.model import AnalysisOutput
 
+
+def sanitize_llm_output(content: str) -> str:
+    """
+    Sanitizes LLM output to ensure proper markdown formatting.
+
+    Fixes:
+    - Escaped newlines (\\n) -> actual newlines
+    - Accidental JSON wrapper structures
+    """
+    # Fix escaped newlines
+    if "\\n" in content:
+        content = content.replace("\\n", "\n")
+
+    # Remove JSON wrapper if accidentally present
+    if content.strip().startswith("{") and '"content":' in content:
+        import json
+
+        try:
+            parsed = json.loads(content)
+            content = parsed.get("content", content)
+        except:
+            pass  # If parsing fails, keep original
+
+    return content
+
+
 def build_graph():
     builder = StateGraph(TheologicalState)
 
@@ -85,7 +111,7 @@ def panorama_node(state: TheologicalState):
     ]
     llm_with_structure = model.with_structured_output(AnalysisOutput)
     response = llm_with_structure.invoke(messages)
-    return {"panorama_content": response.content}
+    return {"panorama_content": sanitize_llm_output(response.content)}
 
 
 def lexical_node(state: TheologicalState):
@@ -102,7 +128,7 @@ def lexical_node(state: TheologicalState):
     ]
     llm_with_structure = model.with_structured_output(AnalysisOutput)
     response = llm_with_structure.invoke(messages)
-    return {"lexical_content": response.content}
+    return {"lexical_content": sanitize_llm_output(response.content)}
 
 
 def historical_node(state: TheologicalState):
@@ -119,7 +145,7 @@ def historical_node(state: TheologicalState):
     ]
     llm_with_structure = model.with_structured_output(AnalysisOutput)
     response = llm_with_structure.invoke(messages)
-    return {"historical_content": response.content}
+    return {"historical_content": sanitize_llm_output(response.content)}
 
 
 def intertextual_node(state: TheologicalState):
@@ -136,7 +162,7 @@ def intertextual_node(state: TheologicalState):
     ]
     llm_with_structure = model.with_structured_output(AnalysisOutput)
     response = llm_with_structure.invoke(messages)
-    return {"intertextual_content": response.content}
+    return {"intertextual_content": sanitize_llm_output(response.content)}
 
 
 def theological_validator_node(state: TheologicalState):
@@ -163,7 +189,7 @@ def theological_validator_node(state: TheologicalState):
     ]
     llm_with_structure = model.with_structured_output(AnalysisOutput)
     response = llm_with_structure.invoke(messages)
-    return {"validation_content": response.content}
+    return {"validation_content": sanitize_llm_output(response.content)}
 
 
 def synthesizer_node(state: TheologicalState):
@@ -184,7 +210,7 @@ def synthesizer_node(state: TheologicalState):
     ]
     llm_with_structure = model.with_structured_output(AnalysisOutput)
     response = llm_with_structure.invoke(messages)
-    return {"final_analysis": response.content}
+    return {"final_analysis": sanitize_llm_output(response.content)}
 
 
 def join_node(state: TheologicalState):
