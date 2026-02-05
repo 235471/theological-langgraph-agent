@@ -18,7 +18,8 @@ Forneça o panorama canônico necessário para interpretar corretamente:
 - Não faça exegese lexical.
 - Não cite comentaristas ainda.
 
-# SAÍDA
+# FORMATO DE SAÍDA
+Retorne texto em Markdown puro com quebras de linha reais.
 Um relatório estruturado e informativo, focado em enquadramento canônico.
 """
 
@@ -37,7 +38,8 @@ Realize uma análise lexical e sintática seletiva de:
 4. Explicite ambiguidades sintáticas quando existirem.
 5. Evite soma ilícita de sentidos e paralelomania verbal.
 
-# SAÍDA
+# FORMATO DE SAÍDA
+Retorne texto em Markdown puro com quebras de linha reais.
 Para cada lema:
 - Termo original (com transliteração)
 - Sentido contextual
@@ -63,7 +65,8 @@ Avaliar possíveis intertextos relacionados a:
 3. Compare o contexto fonte e receptor.
 4. Avalie o ganho cristológico sem violar o sentido original.
 
-# SAÍDA
+# FORMATO DE SAÍDA
+Retorne texto em Markdown puro com quebras de linha reais.
 Lista validada de intertextos com justificativa explícita.
 """
 
@@ -81,7 +84,8 @@ Mapear o testemunho histórico-teológico relevante para:
 3. Citar obra ou sermão específico quando possível.
 4. Preservar tensões teológicas históricas.
 
-# SAÍDA
+# FORMATO DE SAÍDA
+Retorne texto em Markdown puro com quebras de linha reais.
 - Pontos de consenso
 - Leituras divergentes
 - Tradições representadas
@@ -106,7 +110,8 @@ Validar as conclusões obtidas até agora.
 - Identifique oportunidades de aprofundamento teológico.
 - Indique onde a síntese pode ser expandida sem violar o texto.
 
-# SAÍDA
+# FORMATO DE SAÍDA
+Retorne texto em Markdown puro com quebras de linha reais.
 - Alertas
 - Pontos frágeis
 - Nível de confiança por conclusão
@@ -132,10 +137,25 @@ Sintetizar os relatórios recebidos em um estudo bíblico completo.
 # ESTRUTURA
 (Título → Introdução → Contextualização → Exegese → Teologia → Aplicação → Conclusão → Oração)
 
-# SAÍDA
-Markdown limpo e estruturado.
+# FORMATO DE SAÍDA OBRIGATÓRIO
+**CRÍTICO**: Retorne apenas texto em Markdown puro.
+- Use headings (#, ##, ###) para estruturar seções
+- Use quebras de linha reais entre parágrafos
+- Não escape caracteres especiais (ex: não use \\n, use quebra de linha real)
+- Não retorne JSON, não retorne estruturas de dados
+- Apenas o texto do estudo bíblico em Markdown válido
 
-# Contéudo dos relatórios:
+# Exemplo de início esperado:
+# [Título do Estudo]
+
+## Introdução
+
+[Texto da introdução com parágrafos separados por linha em branco]
+
+## Contextualização
+...
+
+# Conteúdo dos relatórios:
    Panorama: {panorama_content}
    Lexical: {lexical_content}
    Histórico: {historical_content}

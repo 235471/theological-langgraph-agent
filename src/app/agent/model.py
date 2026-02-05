@@ -1,5 +1,13 @@
 from pydantic import BaseModel, Field
 
+
 class AnalysisOutput(BaseModel):
-    content: str = Field(description="O conteúdo da análise em markdown")
-    key_points: list[str] = Field(description="Pontos chave identificados")
+    """Schema for structured LLM output. Expects clean markdown text."""
+
+    content: str = Field(
+        description=(
+            "O conteúdo completo da análise em formato Markdown. "
+            "Use quebras de linha reais (não \\n escapado). "
+            "Não retorne JSON - apenas o texto markdown puro."
+        )
+    )
