@@ -105,6 +105,7 @@ def _build_node_result(
     response,
     start_time: float,
     output_field: str,
+    raw_response=None,
     extra_fields: dict | None = None,
     extra_reasoning: dict | None = None,
 ) -> dict:
@@ -121,9 +122,10 @@ def _build_node_result(
         state: Current graph state
         node_name: Node identifier (e.g. 'panorama_agent')
         model_name: Model tier used (e.g. ModelTier.FLASH)
-        response: LLM structured response (has .content)
+        response: Parsed structured response (has .content)
         start_time: time.time() captured at node start
         output_field: State key to write content to (e.g. 'panorama_content')
+        raw_response: Optional raw AIMessage for token extraction
         extra_fields: Optional dict merged into the return (e.g. {'risk_level': 'high'})
         extra_reasoning: Optional dict merged into the reasoning step (e.g. {'alerts': [...]})
 
@@ -131,7 +133,12 @@ def _build_node_result(
         Dict ready to be returned from the node function.
     """
     duration_ms = int((time.time() - start_time) * 1000)
-    usage = extract_token_usage(response)
+    # Extract tokens from raw AIMessage (has usage_metadata), not from parsed Pydantic model
+    usage = (
+        extract_token_usage(raw_response)
+        if raw_response
+        else extract_token_usage(response)
+    )
 
     # Structured log
     log_extra = {
@@ -286,7 +293,11 @@ def panorama_node(state: TheologicalState):
         SystemMessage(content=system_prompt),
         HumanMessage(content="Execute panorama analysis"),
     ]
-    response = model.with_structured_output(AnalysisOutput).invoke(messages)
+    result = model.with_structured_output(AnalysisOutput, include_raw=True).invoke(
+        messages
+    )
+    response = result["parsed"]
+    raw = result["raw"]
 
     return _build_node_result(
         state,
@@ -295,6 +306,7 @@ def panorama_node(state: TheologicalState):
         response,
         start,
         output_field="panorama_content",
+        raw_response=raw,
     )
 
 
@@ -312,7 +324,11 @@ def lexical_node(state: TheologicalState):
         SystemMessage(content=system_prompt),
         HumanMessage(content="Execute exegesis analysis"),
     ]
-    response = model.with_structured_output(AnalysisOutput).invoke(messages)
+    result = model.with_structured_output(AnalysisOutput, include_raw=True).invoke(
+        messages
+    )
+    response = result["parsed"]
+    raw = result["raw"]
 
     return _build_node_result(
         state,
@@ -321,6 +337,7 @@ def lexical_node(state: TheologicalState):
         response,
         start,
         output_field="lexical_content",
+        raw_response=raw,
     )
 
 
@@ -338,7 +355,11 @@ def historical_node(state: TheologicalState):
         SystemMessage(content=system_prompt),
         HumanMessage(content="Execute the historical theological analysis"),
     ]
-    response = model.with_structured_output(AnalysisOutput).invoke(messages)
+    result = model.with_structured_output(AnalysisOutput, include_raw=True).invoke(
+        messages
+    )
+    response = result["parsed"]
+    raw = result["raw"]
 
     return _build_node_result(
         state,
@@ -347,6 +368,7 @@ def historical_node(state: TheologicalState):
         response,
         start,
         output_field="historical_content",
+        raw_response=raw,
     )
 
 
@@ -364,7 +386,11 @@ def intertextual_node(state: TheologicalState):
         SystemMessage(content=system_prompt),
         HumanMessage(content="Execute intertextuality analysis"),
     ]
-    response = model.with_structured_output(AnalysisOutput).invoke(messages)
+    result = model.with_structured_output(AnalysisOutput, include_raw=True).invoke(
+        messages
+    )
+    response = result["parsed"]
+    raw = result["raw"]
 
     return _build_node_result(
         state,
@@ -373,6 +399,7 @@ def intertextual_node(state: TheologicalState):
         response,
         start,
         output_field="intertextual_content",
+        raw_response=raw,
     )
 
 
@@ -400,7 +427,11 @@ def theological_validator_node(state: TheologicalState):
         SystemMessage(content=THEOLOGICAL_VALIDATOR_PROMPT),
         HumanMessage(content="\n\n".join(sections)),
     ]
-    response = model.with_structured_output(ValidatorOutput).invoke(messages)
+    result = model.with_structured_output(ValidatorOutput, include_raw=True).invoke(
+        messages
+    )
+    response = result["parsed"]
+    raw = result["raw"]
 
     risk_level = getattr(response, "risk_level", "low")
     alerts = getattr(response, "alerts", [])
@@ -412,6 +443,7 @@ def theological_validator_node(state: TheologicalState):
         response,
         start,
         output_field="validation_content",
+        raw_response=raw,
         extra_fields={"risk_level": risk_level},
         extra_reasoning={"risk_level": risk_level, "alerts": alerts},
     )
@@ -492,7 +524,11 @@ def synthesizer_node(state: TheologicalState):
             content="Write the study based on the reports provided, in Brazilian Portuguese"
         ),
     ]
-    response = model.with_structured_output(AnalysisOutput).invoke(messages)
+    result = model.with_structured_output(AnalysisOutput, include_raw=True).invoke(
+        messages
+    )
+    response = result["parsed"]
+    raw = result["raw"]
 
     return _build_node_result(
         state,
@@ -501,6 +537,7 @@ def synthesizer_node(state: TheologicalState):
         response,
         start,
         output_field="final_analysis",
+        raw_response=raw,
     )
 
 
