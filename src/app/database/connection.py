@@ -29,11 +29,11 @@ def get_pool() -> ConnectionPool:
             max_size=5,
             open=True,
             kwargs={
-                "prepare_threshold": 0
+                "prepare_threshold": None
             },  # Disable prepared statements for Supabase Transaction Pooler
         )
         logger.info(
-            "Database connection pool created (prepare_threshold=0 for Supabase Pooler)",
+            "Database connection pool created (prepare_threshold=None for Supabase Pooler)",
             extra={"event": "db_pool_created"},
         )
 
