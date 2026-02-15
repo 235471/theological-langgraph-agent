@@ -1,0 +1,31 @@
+# Ignore everything not needed for the API Docker image
+.env
+.env.example
+.git
+.github
+.gitignore
+.streamlit
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Docs & assets
+README.md
+QUICKSTART.md
+GITHUB_SETUP.md
+LICENSE
+plan.pdf
+documents/
+examples/
+resources/
+
+# Streamlit frontend (deployed separately)
+streamlit/
+
+# Dev tools
+start_dev.py
+google-ai-new-quotas&models.csv
+
+# Requirements (only requirements-api.txt is needed, COPYed explicitly)
+requirements.txt
