@@ -1,402 +1,119 @@
 # 🚀 Deployment Guide
 
-This guide covers deploying the Theological LangGraph Agent to various platforms.
+This guide covers deploying the Theological LangGraph Agent to **Render** (Backend/API) and **Streamlit Cloud** (Frontend).
 
-## Streamlit Cloud Deployment
+## 🏗️ Architecture
 
-Streamlit Cloud provides free hosting for Streamlit apps with the following limitations:
-- 1GB RAM
-- Shared CPU
-- 1GB storage
+- **Backend (API):** FastAPI with LangGraph connected to Google Gemini and Supabase PostgreSQL. Hosted on Render.
+- **Frontend (UI):** Streamlit application. Hosted on Streamlit Cloud.
+- **Database:** Supabase PostgreSQL (Transaction Pooler - port 6543).
+
+---
+
+## ☁️ 1. Backend Deployment (Render)
+
+Render is used to host the FastAPI application.
 
 ### Prerequisites
+- [Render Account](https://render.com/)
+- [Supabase Project](https://supabase.com/) (PostgreSQL Database)
+- Google Gemini API Key
+- GitHub Repository
 
-1. GitHub account
-2. Streamlit Cloud account (free at [share.streamlit.io](https://share.streamlit.io))
-3. Google Gemini API key ([Get one free](https://ai.google.dev/))
+### Step 1: Database Setup (Supabase)
+1. Determine your **Transaction Pooler URL**:
+   - Go to Supabase Dashboard → Settings → Database → Connection Pooling.
+   - Mode: `Transaction`.
+   - Port: `6543`.
+   - Copy the connection string. It looks like:
+     `postgres://postgres.xxxx:[PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=require`
 
-### Step 1: Prepare Repository
-
-Ensure your repository has:
-- ✅ `requirements.txt` (generated below)
-- ✅ `.streamlit/config.toml` (generated below)
-- ✅ `streamlit/streamlit_app.py` as main entry point
-- ✅ `.gitignore` excluding `.env` and `venv/`
-
-### Step 2: Push to GitHub
-
-```bash
-# Initialize git (if not already done)
-git init
-
-# Add all files
-git add .
-
-# Commit
-git commit -m "Initial commit: Theological LangGraph Agent"
-
-# Create repository on GitHub and push
-git remote add origin https://github.com/yourusername/theological-langgraph-agent.git
-git branch -M main
-git push -u origin main
-```
-
-### Step 3: Deploy to Streamlit Cloud
-
-1. **Go to Streamlit Cloud**
-   - Visit [share.streamlit.io](https://share.streamlit.io)
-   - Click "New app"
-
-2. **Connect Repository**
-   - Repository: `yourusername/theological-langgraph-agent`
-   - Branch: `main`
-   - Main file path: `streamlit/streamlit_app.py`
-
-3. **Configure Secrets**
-   Click "Advanced settings" → "Secrets" and add:
+### Step 2: Render Configuration
+1. **New Web Service**: Connect your GitHub repository.
+2. **Runtime**: `Docker` (We use a custom Dockerfile).
+3. **Region**: Choose one close to your database (e.g., Oregon/US-West).
+4. **Branch**: `main`.
+5. **Environment Variables**:
+   Add the following secrets in the Render dashboard:
    
-   ```toml
-   GOOGLE_API_KEY = "your_gemini_api_key_here"
-   LANGSMITH_API_KEY = "your_langsmith_key_here"  # Optional
-   LANGCHAIN_TRACING_V2 = "true"                  # Optional
-   LANGCHAIN_PROJECT = "TheologicalAgent"         # Optional
-   ```
+   | Key | Value | Description |
+   |-----|-------|-------------|
+   | `GOOGLE_API_KEY` | `AIzaSy...` | Gemini API Key |
+   | `DB_URL` | `postgresql://...` | Supabase Transaction Pooler URL (Port 6543). **Do NOT add params**. |
+   | `LANGCHAIN_TRACING_V2` | `true` | Enable LangSmith tracing |
+   | `LANGCHAIN_PROJECT` | `TheologicalAgent-Prod` | LangSmith Project Name |
+   | `LANGSMITH_API_KEY` | `lsv2_...` | LangSmith API Key |
+   | `PORT` | `10000` | Render expects the app to bind to this port |
 
-4. **Deploy**
-   - Click "Deploy!"
-   - Wait 2-3 minutes for initial build
-   - Your app will be live at `https://yourusername-theological-agent.streamlit.app`
+### Step 3: Deploy
+- Click **Create Web Service**.
+- The build process will:
+  1. Install Python dependencies from `requirements-api.txt`.
+  2. Copy source code (`src/`) and resources (`resources/NAA.json`).
+  3. Start the application with `uvicorn`.
 
-### Step 4: Update Backend URL
-
-The Streamlit Cloud deployment needs to point to a hosted backend. You have two options:
-
-#### Option A: Deploy Backend Separately
-
-Deploy the FastAPI backend to:
-- **Railway.app** (recommended for free tier)
-- **Render.com**
-- **Google Cloud Run**
-- **AWS Lambda** (with Mangum adapter)
-
-Then update `streamlit/api_client.py`:
-
-```python
-# For production
-API_BASE_URL = "https://your-backend.railway.app"
-
-# For development
-# API_BASE_URL = "http://localhost:8000"
-```
-
-#### Option B: Monolith Mode (All-in-One)
-
-Run both Streamlit and FastAPI in a single process:
-
-1. Create `streamlit_with_backend.py`:
-
-```python
-import subprocess
-import os
-import time
-import threading
-
-def start_backend():
-    """Start FastAPI in background thread."""
-    os.chdir("src")
-    os.environ["PYTHONPATH"] = "."
-    subprocess.run([
-        "uvicorn", "main:app", 
-        "--host", "0.0.0.0", 
-        "--port", "8000"
-    ])
-
-if __name__ == "__main__":
-    # Start backend in background
-    backend_thread = threading.Thread(target=start_backend, daemon=True)
-    backend_thread.start()
-    
-    # Give backend time to start
-    time.sleep(5)
-    
-    # Start Streamlit (this blocks)
-    subprocess.run(["streamlit", "run", "streamlit/app.py"])
-```
-
-2. Update Streamlit Cloud settings:
-   - Main file path: `streamlit_with_backend.py`
-
-⚠️ **Note**: Monolith mode may exceed Streamlit Cloud's 1GB RAM limit for heavy workloads.
-
-### Troubleshooting
-
-#### "Module not found" errors
-
-Ensure `requirements.txt` includes all dependencies:
-```bash
-pip freeze > requirements.txt
-```
-
-#### API timeout errors
-
-Increase timeout in `streamlit/api_client.py`:
-```python
-timeout = 120  # 2 minutes for long analyses
-```
-
-#### Memory errors
-
-Reduce concurrent agent execution or use smaller models.
+**Verification:**
+- Visit `https://your-service-name.onrender.com/health`.
+- Expect: `{"status": "healthy", "database": "connected"}`.
 
 ---
 
-## Railway.app Deployment (Backend)
+## 🎨 2. Frontend Deployment (Streamlit Cloud)
 
-Railway offers 500 hours/month free tier.
+Streamlit Cloud hosts the user interface.
 
-### Step 1: Install Railway CLI
+### Step 1: Create App
+1. Go to [share.streamlit.io](https://share.streamlit.io).
+2. Click **New app**.
+3. Select your repository and branch (`main`).
+4. **Main file path**: `streamlit/streamlit_app.py`.
 
-```bash
-npm install -g @railway/cli
-railway login
+### Step 2: Configure Secrets
+Go to **Advanced Settings** -> **Secrets** and add:
+
+```toml
+# URL of your Render backend (NO trailing slash)
+API_BASE_URL = "https://your-service-name.onrender.com"
+
+# Optional: Tracing for the frontend process locally (if running locally)
+# Not strictly needed for Cloud if API handles the logic
+LANGCHAIN_TRACING_V2 = "true"
+LANGCHAIN_PROJECT = "TheologicalAgent-Frontend"
+LANGSMITH_API_KEY = "lsv2_..."
 ```
 
-### Step 2: Initialize Project
-
-```bash
-# In your project directory
-railway init
-```
-
-### Step 3: Configure
-
-Create `railway.json`:
-
-```json
-{
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "NIXPACKS"
-  },
-  "deploy": {
-    "startCommand": "cd src && uvicorn main:app --host 0.0.0.0 --port $PORT",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
-}
-```
-
-Create `Procfile`:
-
-```
-web: cd src && uvicorn main:app --host 0.0.0.0 --port $PORT
-```
-
-### Step 4: Set Environment Variables
-
-```bash
-railway variables set GOOGLE_API_KEY=your_key_here
-railway variables set LANGSMITH_API_KEY=your_langsmith_key
-```
-
-### Step 5: Deploy
-
-```bash
-railway up
-```
-
-Your API will be live at `https://your-project.railway.app`
+### Step 3: Deploy
+- Click **Deploy**.
+- The app will install dependencies from `requirements.txt` (root) which includes `streamlit`.
 
 ---
 
-## Docker Deployment
+## 🛠️ Troubleshooting & Key Configurations
 
-### Dockerfile
+### Database Connection (Crucial!)
+- **Issue:** `prepared statement ... already exists` or `cannot insert multiple commands`.
+- **Cause:** Incompatibility between `psycopg` default prepared statements and Supabase Transaction Pooler (PgBouncer).
+- **Solution:** The codebase is already patched.
+  - `connection.py`: Sets `prepare_threshold=None` to disable prepared statements.
+  - `init_db.py`: Uses `prepare=False` for DDL statements.
+  - **Do NEVER change** `prepare_threshold` back to `0` or default.
 
-```dockerfile
-FROM python:3.12-slim
+### Docker Build
+- **Issue:** `NAA.json` not found or Bible verses missing.
+- **Solution:** The `Dockerfile` must strictly include:
+  ```dockerfile
+  COPY resources /app/resources
+  ```
+  And `.dockerignore` **must not** ignore the `resources/` folder.
 
-WORKDIR /app
-
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application
-COPY src/ ./src/
-COPY resources/ ./resources/
-COPY .env.example .env
-
-# Expose ports
-EXPOSE 8000 8501
-
-# Start both services
-CMD ["python", "start_dev.py"]
-```
-
-### Docker Compose
-
-```yaml
-version: '3.8'
-
-services:
-  theological-agent:
-    build: .
-    ports:
-      - "8000:8000"
-      - "8501:8501"
-    environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
-    volumes:
-      - ./resources:/app/resources:ro
-    restart: unless-stopped
-```
-
-### Build and Run
-
-```bash
-docker-compose up --build
-```
+### Cold Start
+- Render Free Tier spins down after inactivity.
+- On first request, the Streamlit app might timeout (5s default).
+- **Fix:** Access the API `/health` endpoint manually to wake it up before presenting the demo. Future updates will increase frontend timeout.
 
 ---
 
-## Performance Optimization
+## 🔄 CI/CD Pipeline
 
-### 1. Caching
-
-Enable caching in `streamlit/app.py`:
-
-```python
-@st.cache_data(ttl=3600)
-def get_cached_verses(book, chapter):
-    return api_client.get_verses(book, chapter)
-```
-
-### 2. Connection Pooling
-
-Use `httpx.AsyncClient` with connection pooling in `api_client.py`.
-
-### 3. Database Migration
-
-For production, migrate from JSON to PostgreSQL:
-
-```bash
-pip install sqlalchemy asyncpg
-```
-
----
-
-## Monitoring
-
-### LangSmith Tracing
-
-Enable in production for debugging:
-
-```env
-LANGCHAIN_TRACING_V2=true
-LANGSMITH_API_KEY=lsv2_pt_xxxxx
-LANGCHAIN_PROJECT=TheologicalAgent-Prod
-```
-
-### Application Logs
-
-View logs in Streamlit Cloud:
-- Dashboard → App → Logs
-
-View logs in Railway:
-```bash
-railway logs
-```
-
----
-
-## Cost Estimation
-
-### Free Tier Usage
-
-| Service | Limit | Usage |
-|---------|-------|-------|
-| Streamlit Cloud | 1 app | 1 app |
-| Railway.app | 500h/month | ~720h needed |
-| Google Gemini | 1500 requests/day | Varies |
-
-**Recommended**: 
-- Streamlit Cloud (free) for frontend
-- Railway.app (free 500h + $5/month after) for backend
-- Google Gemini free tier
-
-**Total monthly cost**: ~$5/month
-
----
-
-## Security Best Practices
-
-1. **Never commit `.env`**
-   ```bash
-   echo ".env" >> .gitignore
-   ```
-
-2. **Use secrets management**
-   - Streamlit Cloud: Dashboard secrets
-   - Railway: Environment variables
-   - Docker: `.env` file mounted as volume
-
-3. **Rotate API keys regularly**
-
-4. **Set CORS origins explicitly**
-   ```python
-   allow_origins=["https://yourusername-theological-agent.streamlit.app"]
-   ```
-
-5. **Add rate limiting**
-   ```bash
-   pip install slowapi
-   ```
-
----
-
-## Backup & Recovery
-
-### Database Backup
-
-```bash
-# Backup NAA.json
-aws s3 cp resources/NAA.json s3://your-bucket/backups/
-```
-
-### Environment Backup
-
-Store `.env.example` with documentation, never the actual `.env`.
-
----
-
-## Rollback Strategy
-
-### Streamlit Cloud
-
-Revert to previous commit:
-```bash
-git revert HEAD
-git push
-```
-Streamlit auto-redeploys.
-
-### Railway
-
-```bash
-railway rollback
-```
-
----
-
-## Support
-
-For deployment issues:
-- Streamlit: [docs.streamlit.io](https://docs.streamlit.io)
-- Railway: [docs.railway.app](https://docs.railway.app)
-- LangGraph: [langchain-ai.github.io/langgraph](https://langchain-ai.github.io/langgraph)
-
----
-
-**Happy Deploying! 🚀**
+- **Backend:** Pushing to `main` triggers automatic redeploy on Render.
+- **Frontend:** Pushing to `main` triggers automatic redeploy on Streamlit Cloud.
