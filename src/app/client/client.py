@@ -28,7 +28,9 @@ MODEL_FALLBACKS = {
 
 
 def get_llm_client(
-    model: str = ModelTier.FLASH, temperature: float = 0.3
+    model: str = ModelTier.FLASH,
+    temperature: float = 0.3,
+    max_output_tokens: int | None = None,
 ) -> ChatGoogleGenerativeAI:
     """
     Get a configured LLM client instance.
@@ -36,6 +38,7 @@ def get_llm_client(
     Args:
         model: Model name from ModelTier constants
         temperature: Sampling temperature (lower = more deterministic)
+        max_output_tokens: Optional cap on generated tokens (prevents hallucination loops)
 
     Returns:
         Configured ChatGoogleGenerativeAI instance
@@ -46,11 +49,15 @@ def get_llm_client(
             "GOOGLE_API_KEY not found in environment. Please check your .env file."
         )
 
-    return ChatGoogleGenerativeAI(
-        model=model,
-        temperature=temperature,
-        api_key=api_key,
-    )
+    kwargs = {
+        "model": model,
+        "temperature": temperature,
+        "api_key": api_key,
+    }
+    if max_output_tokens is not None:
+        kwargs["max_output_tokens"] = max_output_tokens
+
+    return ChatGoogleGenerativeAI(**kwargs)
 
 
 def get_llm_client_with_fallback(
@@ -116,4 +123,4 @@ def get_validator_model():
 
 def get_synthesizer_model():
     """Final output quality — uses TOP (gemini-3-flash-preview, 5 RPM)."""
-    return get_llm_client(ModelTier.TOP, temperature=0.4)
+    return get_llm_client(ModelTier.TOP, temperature=0.4, max_output_tokens=25000)

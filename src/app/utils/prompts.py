@@ -147,23 +147,9 @@ Sintetizar os relatórios recebidos em um estudo bíblico completo.
 # ESTRUTURA
 (Título → Introdução → Contextualização → Exegese → Teologia → Aplicação → Conclusão → Oração)
 
-# FORMATO DE SAÍDA OBRIGATÓRIO
-**CRÍTICO**: Retorne apenas texto em Markdown puro.
-- Use headings (#, ##, ###) para estruturar seções
-- Use quebras de linha reais entre parágrafos
-- Não escape caracteres especiais (ex: não use \\n, use quebra de linha real)
-- Não retorne JSON, não retorne estruturas de dados
-- Apenas o texto do estudo bíblico em Markdown válido
-
-# Exemplo de início esperado:
-# [Título do Estudo]
-
-## Introdução
-
-[Texto da introdução com parágrafos separados por linha em branco]
-
-## Contextualização
-...
+# SAÍDA
+Markdown limpo e estruturado, com quebras de linha reais entre parágrafos.
+Use headings (#, ##, ###) para organizar as seções.
 
 # Conteúdo dos relatórios:
    Panorama: {panorama_content}

@@ -8,8 +8,8 @@ class AnalysisOutput(BaseModel):
     content: str = Field(
         description=(
             "O conteúdo completo da análise em formato Markdown. "
-            "Use quebras de linha reais (não \\n escapado). "
-            "Não retorne JSON - apenas o texto markdown puro."
+            "Use quebras de linha reais entre parágrafos. "
+            "Desenvolva cada seção com profundidade."
         )
     )
 
@@ -20,8 +20,8 @@ class ValidatorOutput(BaseModel):
     content: str = Field(
         description=(
             "O conteúdo completo da validação teológica em formato Markdown. "
-            "Use quebras de linha reais (não \\n escapado). "
-            "Não retorne JSON - apenas o texto markdown puro."
+            "Use quebras de linha reais entre parágrafos. "
+            "Inclua análise dos testes obrigatórios e nível de confiança."
         )
     )
     risk_level: str = Field(
