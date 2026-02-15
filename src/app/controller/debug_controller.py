@@ -22,7 +22,7 @@ async def test_llm():
         return {
             "status": "success",
             "response": response.content,
-            "model_used": "gemini-2.5-flash-lite",
+            "model_used": "gemini-2.5-flash (FLASH tier)",
         }
     except Exception as e:
         import traceback

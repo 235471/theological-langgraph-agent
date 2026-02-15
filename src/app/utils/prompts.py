@@ -110,12 +110,22 @@ Validar as conclusões obtidas até agora.
 - Identifique oportunidades de aprofundamento teológico.
 - Indique onde a síntese pode ser expandida sem violar o texto.
 
+# AVALIAÇÃO DE RISCO (OBRIGATÓRIO)
+Após a validação, atribua um risk_level:
+- **low**: Nenhum desvio significativo. Análise sólida e ortodoxa.
+- **medium**: Pequenas imprecisões ou lacunas que não comprometem a interpretação.
+- **high**: Desvios graves de ortodoxia, erros exegéticos críticos, ou interpretações
+  que violem princípios fundamentais (Sola Scriptura, cristocentrismo, etc.)
+
+Para cada alerta grave, inclua-o na lista de alerts com uma descrição concisa.
+
 # FORMATO DE SAÍDA
 Retorne texto em Markdown puro com quebras de linha reais.
 - Alertas
 - Pontos frágeis
 - Nível de confiança por conclusão
 """
+
 
 SYNTHETIZER_PROMPT = """
 # IDENTIDADE

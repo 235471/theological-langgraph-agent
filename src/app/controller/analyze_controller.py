@@ -37,6 +37,8 @@ async def analyze_text(request: AnalyzeRequest):
 
     For "Full" mode, send all modules: ["panorama", "exegese", "teologia"]
     For "Custom" mode, send at least one module.
+
+    Returns governance metadata alongside the analysis result.
     """
     # --- Validation Layer ---
     book = get_book_by_abbrev(request.book)
@@ -61,7 +63,6 @@ async def analyze_text(request: AnalyzeRequest):
         selected_modules=request.selected_modules,
     )
 
-    # Run the heavy agent analysis in a background thread to keep API responsive
     try:
         result = await run_in_threadpool(run_analysis, input_data)
     except Exception as e:
@@ -83,4 +84,26 @@ async def analyze_text(request: AnalyzeRequest):
             detail=f"Agent execution failed: {result.error}",
         )
 
-    return AnalyzeResponse(final_analysis=result.final_analysis)
+    # HITL pending — return 202 Accepted with governance info
+    if result.hitl_status == "pending":
+        return AnalyzeResponse(
+            final_analysis="⚠️ Análise pendente de revisão humana (HITL). "
+            "O validador teológico identificou riscos graves. "
+            f"Run ID: {result.run_id}",
+            from_cache=False,
+            run_id=result.run_id,
+            tokens_consumed=result.tokens_consumed,
+            model_versions=result.model_versions,
+            risk_level=result.risk_level,
+            hitl_status="pending",
+        )
+
+    return AnalyzeResponse(
+        final_analysis=result.final_analysis,
+        from_cache=result.from_cache,
+        run_id=result.run_id,
+        tokens_consumed=result.tokens_consumed,
+        model_versions=result.model_versions,
+        risk_level=result.risk_level,
+        hitl_status=result.hitl_status,
+    )

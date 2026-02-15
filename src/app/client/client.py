@@ -1,23 +1,37 @@
+"""
+LLM Client Configuration
+
+4-tier model strategy with fallback chain for deprecation resilience.
+"""
+
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
+from app.utils.logger import get_logger
 
-
-# Model tier configuration based on free tier rate limits
-# gemini-2.5-flash: 5 RPM (for complex synthesis)
-# gemini-2.5-flash-lite: 10 RPM (for lighter analysis)
-# gemini-3-flash-preview: 5 RPM (for medium tasks)
+logger = get_logger(__name__)
 
 
 class ModelTier:
-    """Model tiers for load balancing across free tier limits."""
+    """4 primary models — one per load tier for maximum distribution."""
 
-    FLASH = "gemini-2.5-flash"  # 5 RPM - Complex tasks
-    LITE = "gemini-2.5-flash-lite"  # 10 RPM - Lighter tasks
-    PREVIEW = "gemini-3-flash-preview"  # 5 RPM - Medium tasks
+    LITE = "gemini-2.5-flash-lite"  # 10 RPM, 250K TPM, 20 RPD — Light tasks
+    FLASH = "gemini-2.5-flash"  # 5 RPM, 250K TPM, 20 RPD — Light optional tasks
+    PRO = "gemini-2.5-pro"  # 15 RPM, ∞ TPM, 1500 RPD — Quality tasks
+    TOP = "gemini-3-pro-preview"  # 15 RPM, ∞ TPM, 1500 RPD — Critical tasks
+
+
+# Fallback chain: if primary model fails (429 / deprecated), try the next one
+MODEL_FALLBACKS = {
+    "gemini-3-pro-preview": "gemini-2.5-pro",
+    "gemini-2.5-pro": "gemini-3-flash-preview",
+    "gemini-3-flash-preview": "gemini-2.5-flash",
+    "gemini-2.5-flash": "gemini-2.5-flash-lite",
+    "gemini-2.5-flash-lite": "gemini-2.0-flash-lite",  # last resort
+}
 
 
 def get_llm_client(
-    model: str = ModelTier.FLASH, temperature: float = 0.3
+    model: str = ModelTier.PRO, temperature: float = 0.3
 ) -> ChatGoogleGenerativeAI:
     """
     Get a configured LLM client instance.
@@ -32,7 +46,7 @@ def get_llm_client(
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         raise ValueError(
-            "GOOGLE_API_KEY not found in environment. " "Please check your .env file."
+            "GOOGLE_API_KEY not found in environment. Please check your .env file."
         )
 
     return ChatGoogleGenerativeAI(
@@ -42,35 +56,67 @@ def get_llm_client(
     )
 
 
-# Pre-configured clients for different node types
-# This distributes load across models to maximize throughput
+def get_llm_client_with_fallback(
+    model: str, temperature: float = 0.3
+) -> tuple[ChatGoogleGenerativeAI, str]:
+    """
+    Get an LLM client, with automatic fallback on failure.
+
+    Returns:
+        Tuple of (client, actual_model_name) — model_name may differ if fallback was used.
+    """
+    current_model = model
+
+    while current_model:
+        try:
+            client = get_llm_client(current_model, temperature)
+            return client, current_model
+        except Exception as e:
+            fallback = MODEL_FALLBACKS.get(current_model)
+            if fallback:
+                logger.warning(
+                    f"Model {current_model} failed, falling back to {fallback}: {e}",
+                    extra={
+                        "event": "model_fallback",
+                        "model": current_model,
+                        "fallback": fallback,
+                    },
+                )
+                current_model = fallback
+            else:
+                raise
+
+    raise ValueError(f"All models exhausted starting from {model}")
+
+
+# --- Pre-configured clients for each node ---
 
 
 def get_panorama_model():
-    """Lighter analysis - uses LITE (10 RPM)."""
-    return get_llm_client(ModelTier.LITE, temperature=0.2)
-
-
-def get_lexical_model():
-    """Medium complexity exegesis - uses FLASH (5 RPM)."""
-    return get_llm_client(ModelTier.FLASH, temperature=0.1)
-
-
-def get_historical_model():
-    """Medium complexity - uses FLASH (5 RPM)."""
+    """Light optional analysis — uses FLASH (5 RPM)."""
     return get_llm_client(ModelTier.FLASH, temperature=0.2)
 
 
+def get_lexical_model():
+    """Quality exegesis — uses PRO (15 RPM, ∞ TPM)."""
+    return get_llm_client(ModelTier.PRO, temperature=0.1)
+
+
+def get_historical_model():
+    """Quality historical mapping — uses PRO (15 RPM, ∞ TPM)."""
+    return get_llm_client(ModelTier.PRO, temperature=0.2)
+
+
 def get_intertextual_model():
-    """Lighter analysis - uses LITE (10 RPM)."""
+    """Always runs, needs throughput — uses LITE (10 RPM)."""
     return get_llm_client(ModelTier.LITE, temperature=0.2)
 
 
 def get_validator_model():
-    """Critical validation - uses PREVIEW (5 RPM)."""
-    return get_llm_client(ModelTier.PREVIEW, temperature=0.1)
+    """Most critical node — uses TOP (gemini-3-pro-preview, 15 RPM)."""
+    return get_llm_client(ModelTier.TOP, temperature=0.1)
 
 
 def get_synthesizer_model():
-    """Complex synthesis - uses PREVIEW (5 RPM)."""
-    return get_llm_client(ModelTier.PREVIEW, temperature=0.4)
+    """Final output quality — uses TOP (gemini-3-pro-preview, 15 RPM)."""
+    return get_llm_client(ModelTier.TOP, temperature=0.4)
