@@ -18,7 +18,7 @@ LICENSE
 plan.pdf
 documents/
 examples/
-# resources/ (needed for Bible data)
+# resources/ (Include resources for Bible data!)
 
 # Streamlit frontend (deployed separately)
 streamlit/

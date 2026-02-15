@@ -6,9 +6,11 @@ WORKDIR /app
 COPY requirements-api.txt .
 RUN pip install --no-cache-dir -r requirements-api.txt
 
-# Copy API source code and resources
+# Copy API source code
 COPY src/ ./src/
-COPY resources/ ./resources/
+
+# Copy resources explicitly (Bible data)
+COPY resources /app/resources
 
 # Render sets PORT env var; default to 8000
 ENV PORT=8000
