@@ -8,14 +8,17 @@ import time
 # --- Environment & Tracing Setup ---
 load_dotenv()
 
-if "LANGCHAIN_TRACING_V2" in st.secrets:
-    for key, value in st.secrets.items():
-        if (
-            key.startswith("LANGCHAIN_")
-            or key == "GOOGLE_API_KEY"
-            or key == "LANGSMITH_API_KEY"
-        ):
-            os.environ[key] = str(value)
+try:
+    if "LANGCHAIN_TRACING_V2" in st.secrets:
+        for key, value in st.secrets.items():
+            if (
+                key.startswith("LANGCHAIN_")
+                or key == "GOOGLE_API_KEY"
+                or key == "LANGSMITH_API_KEY"
+            ):
+                os.environ[key] = str(value)
+except Exception:
+    pass  # No secrets.toml — running locally with .env
 
 # --- Page Configuration ---
 st.set_page_config(

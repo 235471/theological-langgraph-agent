@@ -156,16 +156,12 @@ def _build_node_result(
     if extra_reasoning:
         reasoning_entry.update(extra_reasoning)
 
-    # Immutable state merges
-    existing_models = state.get("model_versions") or {}
-    existing_tokens = state.get("tokens_consumed") or {}
-    existing_steps = state.get("reasoning_steps") or []
-
+    # Immutable state — reducers in TheologicalState handle merging
     result = {
         output_field: sanitize_llm_output(response.content),
-        "model_versions": {**existing_models, node_name: model_name},
-        "tokens_consumed": {**existing_tokens, node_name: usage},
-        "reasoning_steps": existing_steps + [reasoning_entry],
+        "model_versions": {node_name: model_name},
+        "tokens_consumed": {node_name: usage},
+        "reasoning_steps": [reasoning_entry],
     }
 
     if extra_fields:

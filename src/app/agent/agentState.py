@@ -1,4 +1,14 @@
-from typing import TypedDict, Optional, List
+from typing import TypedDict, Optional, List, Annotated
+
+
+def _merge_dicts(left: dict | None, right: dict | None) -> dict:
+    """Reducer: merge two dicts (parallel nodes each contribute their key)."""
+    return {**(left or {}), **(right or {})}
+
+
+def _concat_lists(left: list | None, right: list | None) -> list:
+    """Reducer: concatenate lists (parallel nodes each append their entry)."""
+    return (left or []) + (right or [])
 
 
 class TheologicalState(TypedDict):
@@ -23,8 +33,14 @@ class TheologicalState(TypedDict):
     # Governance / Observability
     run_id: Optional[str]
     created_at: Optional[str]
-    model_versions: Optional[dict]  # {"panorama": "gemini-2.5-flash", ...}
-    tokens_consumed: Optional[dict]  # {"panorama": {"input": N, "output": M}, ...}
-    reasoning_steps: Optional[list]  # Zero-cost metadata from existing calls
+    model_versions: Annotated[
+        dict, _merge_dicts
+    ]  # {"panorama": "gemini-2.5-flash", ...}
+    tokens_consumed: Annotated[
+        dict, _merge_dicts
+    ]  # {"panorama": {"input": N, "output": M}, ...}
+    reasoning_steps: Annotated[
+        list, _concat_lists
+    ]  # Zero-cost metadata from existing calls
     risk_level: Optional[str]  # "low" | "medium" | "high" — set by validator
     hitl_status: Optional[str]  # None | "pending" | "approved" | "edited"
