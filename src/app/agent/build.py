@@ -303,7 +303,7 @@ def panorama_node(state: TheologicalState):
 
 
 def lexical_node(state: TheologicalState):
-    """Lexical exegesis — PRO model (gemini-2.5-pro, 15 RPM)."""
+    """Lexical exegesis — FLASH model (gemini-2.5-flash, 5 RPM)."""
     start = time.time()
     model = get_lexical_model()
 
@@ -321,7 +321,7 @@ def lexical_node(state: TheologicalState):
     return _build_node_result(
         state,
         "lexical_agent",
-        ModelTier.PRO,
+        ModelTier.FLASH,
         response,
         start,
         output_field="lexical_content",
@@ -329,7 +329,7 @@ def lexical_node(state: TheologicalState):
 
 
 def historical_node(state: TheologicalState):
-    """Historical-theological analysis — PRO model (gemini-2.5-pro, 15 RPM)."""
+    """Historical-theological analysis — FLASH model (gemini-2.5-flash, 5 RPM)."""
     start = time.time()
     model = get_historical_model()
 
@@ -347,7 +347,7 @@ def historical_node(state: TheologicalState):
     return _build_node_result(
         state,
         "historical_agent",
-        ModelTier.PRO,
+        ModelTier.FLASH,
         response,
         start,
         output_field="historical_content",
@@ -385,7 +385,7 @@ def intertextual_node(state: TheologicalState):
 
 def theological_validator_node(state: TheologicalState):
     """
-    Theological validation — TOP model (gemini-3-pro-preview, 15 RPM).
+    Theological validation — TOP model (gemini-3-flash-preview, 5 RPM).
     Uses ValidatorOutput to extract risk_level and alerts for HITL decisions.
     """
     start = time.time()
@@ -479,7 +479,7 @@ def hitl_pending_node(state: TheologicalState):
 
 
 def synthesizer_node(state: TheologicalState):
-    """Final synthesis — TOP model (gemini-3-pro-preview, 15 RPM)."""
+    """Final synthesis — TOP model (gemini-3-flash-preview, 5 RPM)."""
     start = time.time()
     model = get_synthesizer_model()
 
