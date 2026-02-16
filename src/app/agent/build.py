@@ -291,22 +291,18 @@ def panorama_node(state: TheologicalState):
     )
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content="Execute panorama analysis"),
+        HumanMessage(content="Analise a passagem conforme o contexto canônico."),
     ]
-    result = model.with_structured_output(AnalysisOutput, include_raw=True).invoke(
-        messages
-    )
-    response = result["parsed"]
-    raw = result["raw"]
+    response = model.invoke(messages)
 
     return _build_node_result(
         state,
         "panorama_agent",
-        ModelTier.FLASH,
-        response,
+        ModelTier.FAST,
+        response.content,
         start,
         output_field="panorama_content",
-        raw_response=raw,
+        raw_response=response,
     )
 
 
@@ -315,29 +311,29 @@ def lexical_node(state: TheologicalState):
     start = time.time()
     model = get_lexical_model()
 
+    book = state["bible_book"]
+    chapter = state["chapter"]
+    verses_str = " ".join(state["verses"])
+
     system_prompt = LEXICAL_EXEGESIS_PROMPT.format(
-        livro=state["bible_book"],
-        capitulo=state["chapter"],
-        versiculos=" ".join(state["verses"]),
+        livro=book,
+        capitulo=chapter,
+        versiculos=verses_str,
     )
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content="Execute exegesis analysis"),
+        HumanMessage(content="Realize a exegese lexical dos principais termos."),
     ]
-    result = model.with_structured_output(AnalysisOutput, include_raw=True).invoke(
-        messages
-    )
-    response = result["parsed"]
-    raw = result["raw"]
+    response = model.invoke(messages)
 
     return _build_node_result(
         state,
         "lexical_agent",
-        ModelTier.FLASH,
-        response,
+        ModelTier.FAST,
+        response.content,
         start,
         output_field="lexical_content",
-        raw_response=raw,
+        raw_response=response,
     )
 
 
@@ -346,29 +342,29 @@ def historical_node(state: TheologicalState):
     start = time.time()
     model = get_historical_model()
 
+    book = state["bible_book"]
+    chapter = state["chapter"]
+    verses_str = " ".join(state["verses"])
+
     system_prompt = HISTORICAL_THEOLOGICAL_PROMPT.format(
-        livro=state["bible_book"],
-        capitulo=state["chapter"],
-        versiculos=" ".join(state["verses"]),
+        livro=book,
+        capitulo=chapter,
+        versiculos=verses_str,
     )
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content="Execute the historical theological analysis"),
+        HumanMessage(content="Mapeie as interpretações históricas e teológicas."),
     ]
-    result = model.with_structured_output(AnalysisOutput, include_raw=True).invoke(
-        messages
-    )
-    response = result["parsed"]
-    raw = result["raw"]
+    response = model.invoke(messages)
 
     return _build_node_result(
         state,
         "historical_agent",
-        ModelTier.FLASH,
-        response,
+        ModelTier.FAST,
+        response.content,
         start,
         output_field="historical_content",
-        raw_response=raw,
+        raw_response=response,
     )
 
 
@@ -377,29 +373,29 @@ def intertextual_node(state: TheologicalState):
     start = time.time()
     model = get_intertextual_model()
 
+    book = state["bible_book"]
+    chapter = state["chapter"]
+    verses_str = " ".join(state["verses"])
+
     system_prompt = INTERTEXTUALITY_PROMPT.format(
-        livro=state["bible_book"],
-        capitulo=state["chapter"],
-        versiculos=" ".join(state["verses"]),
+        livro=book,
+        capitulo=chapter,
+        versiculos=verses_str,
     )
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content="Execute intertextuality analysis"),
+        HumanMessage(content="Identifique e analise as conexões intertextuais."),
     ]
-    result = model.with_structured_output(AnalysisOutput, include_raw=True).invoke(
-        messages
-    )
-    response = result["parsed"]
-    raw = result["raw"]
+    response = model.invoke(messages)
 
     return _build_node_result(
         state,
         "intertextual_agent",
-        ModelTier.LITE,
-        response,
+        ModelTier.FAST_LITE,
+        response.content,
         start,
         output_field="intertextual_content",
-        raw_response=raw,
+        raw_response=response,
     )
 
 

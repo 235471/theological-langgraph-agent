@@ -26,7 +26,8 @@ Forneça o panorama canônico necessário para interpretar corretamente esta pas
 </CONSTRAINTS>
 
 <OUTPUT_FORMAT>
-O relatório deve ser um texto Markdown completo e bem estruturado.
+Retorne APENAS o relatório em Markdown.
+Não use blocos de código (```markdown) ou chaves JSON.
 Use títulos (##, ###) para separar as seções solicitadas.
 </OUTPUT_FORMAT>
 """
@@ -53,13 +54,9 @@ Realize uma análise lexical e sintática seletiva.
 </INSTRUCTIONS>
 
 <OUTPUT_FORMAT>
-O relatório deve ser um texto Markdown completo e bem estruturado.
-Para cada lema, use a estrutura:
-- Termo original (com transliteração)
-- Sentido contextual
-- Domínio semântico
-- Implicação teológica
-- Grau de confiança
+Retorne APENAS o relatório em Markdown.
+Para cada lema, use a estrutura de títulos ou listas.
+Não use blocos de código ou JSON.
 </OUTPUT_FORMAT>
 """
 
@@ -84,8 +81,9 @@ Avaliar possíveis intertextos relacionados.
 </INSTRUCTIONS>
 
 <OUTPUT_FORMAT>
-Retorne texto em Markdown puro com quebras de linha reais.
+Retorne APENAS o relatório em Markdown.
 Lista validada de intertextos com justificativa explícita.
+Não use JSON.
 </OUTPUT_FORMAT>
 """
 
@@ -110,7 +108,8 @@ Mapear o testemunho histórico-teológico relevante.
 </INSTRUCTIONS>
 
 <OUTPUT_FORMAT>
-O relatório deve ser um texto Markdown completo e bem estruturado.
+Retorne APENAS o relatório em Markdown.
+Não use JSON.
 Inclua:
 - Pontos de consenso
 - Leituras divergentes
