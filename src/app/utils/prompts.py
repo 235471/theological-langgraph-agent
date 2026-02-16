@@ -193,17 +193,15 @@ Sintetizar os relatórios recebidos em um estudo bíblico completo.
 </SOURCE_MATERIAL>
 
 <INSTRUCTIONS>
-1. Não introduza novas fontes.
-2. Preserve tensões teológicas.
-3. Derive aplicação da função da perícope.
-4. Mantenha tom acadêmico e pastoral.
-5. Desenvolva cada seção com profundidade acadêmica proporcional.
-6. Quando possível, articule explicitamente conexões entre os relatórios.
-7. Não seja conciso: priorize clareza e desenvolvimento argumentativo.
+1. **Integração:** Utilize as informações dos relatórios (Source Material) para construir um texto coeso. Não apenas copie e cole, mas sintetize.
+2. **Profundidade e Foco:** Desenvolva cada seção com profundidade acadêmica e pastoral, mas evite repetições desnecessárias. Mantenha o foco na mensagem central da passagem.
+3. **Tensões:** Preserve as tensões teológicas identificadas nos relatórios.
+4. **Aplicação:** A aplicação prática deve derivar logicamente da exegese e teologia apresentadas.
+5. **Estilo:** Mantenha um tom que seja ao mesmo tempo erudito (respeitando o texto original) e acessível (pastoral).
 </INSTRUCTIONS>
 
 <OUTPUT_STRUCTURE>
-(Título → Introdução → Contextualização → Exegese → Teologia → Aplicação → Conclusão → Oração)
+(Título Sugestivo → Introdução → Contextualização → Exegese Detalhada → Teologia Bíblica → Aplicação Pastoral → Conclusão → Oração Final)
 Use headings (#, ##, ###) para organizar as seções.
 </OUTPUT_STRUCTURE>
 
