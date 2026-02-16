@@ -298,7 +298,7 @@ def panorama_node(state: TheologicalState):
     return _build_node_result(
         state,
         "panorama_agent",
-        ModelTier.FAST,
+        ModelTier.LITE,
         response.content,
         start,
         output_field="panorama_content",
@@ -391,7 +391,7 @@ def intertextual_node(state: TheologicalState):
     return _build_node_result(
         state,
         "intertextual_agent",
-        ModelTier.FAST_LITE,
+        ModelTier.LITE,
         response.content,
         start,
         output_field="intertextual_content",
