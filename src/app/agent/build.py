@@ -311,14 +311,10 @@ def lexical_node(state: TheologicalState):
     start = time.time()
     model = get_lexical_model()
 
-    book = state["bible_book"]
-    chapter = state["chapter"]
-    verses_str = " ".join(state["verses"])
-
     system_prompt = LEXICAL_EXEGESIS_PROMPT.format(
-        livro=book,
-        capitulo=chapter,
-        versiculos=verses_str,
+        livro=state["bible_book"],
+        capitulo=state["chapter"],
+        versiculos=" ".join(state["verses"]),
     )
     messages = [
         SystemMessage(content=system_prompt),
@@ -342,14 +338,10 @@ def historical_node(state: TheologicalState):
     start = time.time()
     model = get_historical_model()
 
-    book = state["bible_book"]
-    chapter = state["chapter"]
-    verses_str = " ".join(state["verses"])
-
     system_prompt = HISTORICAL_THEOLOGICAL_PROMPT.format(
-        livro=book,
-        capitulo=chapter,
-        versiculos=verses_str,
+        livro=state["bible_book"],
+        capitulo=state["chapter"],
+        versiculos=" ".join(state["verses"]),
     )
     messages = [
         SystemMessage(content=system_prompt),
@@ -373,14 +365,10 @@ def intertextual_node(state: TheologicalState):
     start = time.time()
     model = get_intertextual_model()
 
-    book = state["bible_book"]
-    chapter = state["chapter"]
-    verses_str = " ".join(state["verses"])
-
     system_prompt = INTERTEXTUALITY_PROMPT.format(
-        livro=book,
-        capitulo=chapter,
-        versiculos=verses_str,
+        livro=state["bible_book"],
+        capitulo=state["chapter"],
+        versiculos=" ".join(state["verses"]),
     )
     messages = [
         SystemMessage(content=system_prompt),

@@ -117,11 +117,12 @@ Requisições idênticas (mesmo livro + capítulo + versículos + módulos) são
 ## Principais Funcionalidades
 
 - **Execução Paralela de Agentes** — Scatter-gather via LangGraph `Send` API
-- **Output Estruturado do LLM** — Respostas validadas por Pydantic com sanitização
+- **Output Híbrido** — Markdown puro para nós de análise + validação Pydantic para governança
 - **Controle HITL** — Edge condicional baseado em risco com alertas por email
 - **Cache** — Dedup SHA-256 com contagem atômica de hits
 - **Trilha de Auditoria** — Todo run persistido (sucesso + falha) no PostgreSQL
-- **Logging JSON Estruturado** — Logs machine-parseable com correlação `run_id`
+- **Logging JSON/YAML Estruturado** — Logs machine-parseable com correlação `run_id` (ver [`samples/`](samples/))
+    > **Insight de Engenharia:** A arquitetura foi desenhada para ser **'Observable-by-Design'**. Através de logs estruturados (JSON/YAML), capturamos o consumo de tokens e a latência de cada agente de forma atômica. Isso permite não apenas a auditoria de segurança (*risk_level*), mas também uma análise financeira precisa (ROI) e a otimização contínua da experiência do usuário (UX).    
 - **Cadeia de Fallback** — Fallback automático de modelo em 429/depreciação
 - **Docker + Render** — Deploy em produção com keep-alive cron
 - **Integração LangSmith** — Observabilidade e tracing completos

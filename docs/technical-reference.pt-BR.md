@@ -99,10 +99,11 @@ def panorama_node(state: TheologicalState):
     start = time.time()
     model = get_panorama_model()
     # ... constrói prompt + mensagens ...
-    response = model.with_structured_output(AnalysisOutput).invoke(messages)
+    response = model.invoke(messages)
     return _build_node_result(
         state, "panorama_agent", ModelTier.FLASH, response, start,
         output_field="panorama_content",
+        raw_response=response,
     )
 ```
 
@@ -181,6 +182,9 @@ Logs formatados em JSON com correlação `run_id` para rastreamento entre nós:
 
 ```json
 {"timestamp": "2026-02-15T04:13:01Z", "level": "INFO", "logger": "app.agent.build", "message": "panorama_agent completed", "event": "node_complete", "node": "panorama_agent", "model": "gemini-2.5-flash", "tokens": {"input": 1200, "output": 3400}, "duration_ms": 8500, "run_id": "a1b2c3d4"}
+```
+
+> **Exemplo Real:** Veja [`samples/`](../samples/) para logs de entrada/saída reais mostrando uso de tokens e passos de raciocínio.
 ```
 
 ### Serviço de Auditoria

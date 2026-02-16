@@ -117,11 +117,12 @@ Identical requests (same book + chapter + verses + modules) are cached using **S
 ## Key Features
 
 - **Parallel Agent Execution** — Scatter-gather via LangGraph `Send` API
-- **Structured LLM Output** — Pydantic-validated responses with sanitization
+- **Hybdrid LLM Output** — Raw Markdown for analysis nodes + Pydantic validation for governance
 - **HITL Gating** — Risk-based conditional edge with email alerts
 - **Caching** — SHA-256 dedup with atomic hit counting
 - **Audit Trail** — Every run persisted (success + failure) to PostgreSQL
-- **JSON Structured Logging** — Machine-parseable logs with `run_id` correlation
+- **JSON/YAML Structured Logging** — Machine-parseable logs with `run_id` correlation (see [`samples/`](samples/))
+    > **Engineering Insight:** The architecture is **Observable-by-Design**. Through structured logs (JSON/YAML), we capture atomic token consumption and latency for every agent. This enables not just security auditing (risk_level), but precise financial analysis (ROI) and continuous UX optimization.
 - **Fallback Chain** — Automatic model fallback on 429/deprecation
 - **Docker + Render** — Production deployment with keep-alive cron
 - **LangSmith Integration** — Full observability and tracing
