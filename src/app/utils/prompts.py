@@ -26,8 +26,8 @@ Forneça o panorama canônico necessário para interpretar corretamente esta pas
 </CONSTRAINTS>
 
 <OUTPUT_FORMAT>
-Retorne texto em Markdown puro com quebras de linha reais.
-Um relatório estruturado e informativo, focado em enquadramento canônico.
+O relatório deve ser um texto Markdown completo e bem estruturado.
+Use títulos (##, ###) para separar as seções solicitadas.
 </OUTPUT_FORMAT>
 """
 
@@ -53,8 +53,8 @@ Realize uma análise lexical e sintática seletiva.
 </INSTRUCTIONS>
 
 <OUTPUT_FORMAT>
-Retorne texto em Markdown puro com quebras de linha reais.
-Para cada lema:
+O relatório deve ser um texto Markdown completo e bem estruturado.
+Para cada lema, use a estrutura:
 - Termo original (com transliteração)
 - Sentido contextual
 - Domínio semântico
@@ -110,7 +110,8 @@ Mapear o testemunho histórico-teológico relevante.
 </INSTRUCTIONS>
 
 <OUTPUT_FORMAT>
-Retorne texto em Markdown puro com quebras de linha reais.
+O relatório deve ser um texto Markdown completo e bem estruturado.
+Inclua:
 - Pontos de consenso
 - Leituras divergentes
 - Tradições representadas
