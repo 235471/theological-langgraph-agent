@@ -329,7 +329,7 @@ def lexical_node(state: TheologicalState):
     return _build_node_result(
         state,
         "lexical_agent",
-        ModelTier.FAST,
+        ModelTier.FLASH,
         response,
         start,
         output_field="lexical_content",
@@ -360,7 +360,7 @@ def historical_node(state: TheologicalState):
     return _build_node_result(
         state,
         "historical_agent",
-        ModelTier.FAST,
+        ModelTier.FLASH,
         response,
         start,
         output_field="historical_content",
