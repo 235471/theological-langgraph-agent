@@ -118,7 +118,7 @@ def get_intertextual_model():
 
 def get_validator_model():
     """Most critical node — uses TOP (gemini-3-flash-preview, 5 RPM)."""
-    return get_llm_client(ModelTier.TOP, temperature=0.1)
+    return get_llm_client(ModelTier.TOP, temperature=0.1, max_output_tokens=15000)
 
 
 def get_synthesizer_model():

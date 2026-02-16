@@ -414,18 +414,16 @@ def theological_validator_node(state: TheologicalState):
     start = time.time()
     model = get_validator_model()
 
-    sections = []
-    if state.get("panorama_content"):
-        sections.append(f"Panorama:\n{state['panorama_content']}")
-    if state.get("lexical_content"):
-        sections.append(f"Exegese:\n{state['lexical_content']}")
-    if state.get("historical_content"):
-        sections.append(f"Teologia Histórica:\n{state['historical_content']}")
-    sections.append(f"Intertextualidade:\n{state['intertextual_content']}")
+    system_prompt = THEOLOGICAL_VALIDATOR_PROMPT.format(
+        panorama_content=state.get("panorama_content") or "",
+        lexical_content=state.get("lexical_content") or "",
+        historical_content=state.get("historical_content") or "",
+        intertextual_content=state.get("intertextual_content") or "",
+    )
 
     messages = [
-        SystemMessage(content=THEOLOGICAL_VALIDATOR_PROMPT),
-        HumanMessage(content="\n\n".join(sections)),
+        SystemMessage(content=system_prompt),
+        HumanMessage(content="Validate the theological reports."),
     ]
     result = model.with_structured_output(ValidatorOutput, include_raw=True).invoke(
         messages

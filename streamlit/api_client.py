@@ -14,7 +14,7 @@ except Exception:
 class APIClient:
     def __init__(self):
         self.base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
-        self.timeout = 180  # Increased for multi-agent execution
+        self.timeout = 600  # Increased to 10 minutes for deep analysis chains
 
     def get_verses(self, abbrev: str, chapter: int):
         try:
