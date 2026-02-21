@@ -5,7 +5,7 @@ Uses Pydantic for strict validation (Python equivalent of Zod).
 """
 
 import re
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional
 
 
@@ -19,6 +19,8 @@ class AnalyzeRequest(BaseModel):
     Request payload for theological analysis.
     Strict validation and sanitization on all fields.
     """
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     book: str = Field(
         ...,
@@ -127,5 +129,7 @@ class HITLReviewResponse(BaseModel):
 
 class HITLApproveRequest(BaseModel):
     """Request to approve or edit a HITL review."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     edited_content: Optional[str] = None
