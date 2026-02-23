@@ -36,6 +36,7 @@ class HITLReview:
     status: str
     created_at: str
     model_versions: Optional[dict] = None
+    prompt_versions: Optional[dict] = None
     tokens_consumed: Optional[dict] = None
     reasoning_steps: Optional[list] = None
     edited_content: Optional[str] = None
@@ -56,6 +57,7 @@ def save_pending_review(
     historical_content: Optional[str] = None,
     intertextual_content: Optional[str] = None,
     model_versions: Optional[dict] = None,
+    prompt_versions: Optional[dict] = None,
     tokens_consumed: Optional[dict] = None,
     reasoning_steps: Optional[list] = None,
 ) -> None:
@@ -69,13 +71,13 @@ def save_pending_review(
                         run_id, book, chapter, verses, risk_level, alerts,
                         validation_content, panorama_content, lexical_content,
                         historical_content, intertextual_content, selected_modules,
-                        model_versions, tokens_consumed, reasoning_steps,
+                        model_versions, prompt_versions, tokens_consumed, reasoning_steps,
                         status
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s,
                         %s, %s, %s,
                         %s, %s, %s,
-                        %s, %s, %s,
+                        %s, %s, %s, %s,
                         'pending'
                     )
                     ON CONFLICT (run_id) DO NOTHING
@@ -94,6 +96,7 @@ def save_pending_review(
                         intertextual_content,
                         selected_modules,
                         json.dumps(model_versions) if model_versions else None,
+                        json.dumps(prompt_versions) if prompt_versions else None,
                         json.dumps(tokens_consumed) if tokens_consumed else None,
                         json.dumps(reasoning_steps) if reasoning_steps else None,
                     ),
@@ -156,7 +159,7 @@ def get_review(run_id: str) -> Optional[dict]:
                            validation_content, panorama_content, lexical_content,
                            historical_content, intertextual_content, selected_modules,
                            edited_content, status, created_at, reviewed_at,
-                           model_versions, tokens_consumed, reasoning_steps
+                           model_versions, prompt_versions, tokens_consumed, reasoning_steps
                     FROM hitl_reviews
                     WHERE run_id = %s
                     """,
@@ -185,8 +188,9 @@ def get_review(run_id: str) -> Optional[dict]:
             "created_at": row[14].isoformat() if row[14] else None,
             "reviewed_at": row[15].isoformat() if row[15] else None,
             "model_versions": json.loads(row[16]) if row[16] else None,
-            "tokens_consumed": json.loads(row[17]) if row[17] else None,
-            "reasoning_steps": json.loads(row[18]) if row[18] else None,
+            "prompt_versions": json.loads(row[17]) if row[17] else None,
+            "tokens_consumed": json.loads(row[18]) if row[18] else None,
+            "reasoning_steps": json.loads(row[19]) if row[19] else None,
         }
 
     except Exception as e:

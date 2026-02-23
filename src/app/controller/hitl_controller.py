@@ -129,6 +129,7 @@ def _run_synthesis_from_review(
         "run_id": review["run_id"],
         "created_at": review.get("created_at"),
         "model_versions": review.get("model_versions") or {},
+        "prompt_versions": review.get("prompt_versions") or {},
         "tokens_consumed": review.get("tokens_consumed") or {},
         "reasoning_steps": review.get("reasoning_steps") or [],
         "risk_level": review.get("risk_level"),
@@ -154,6 +155,7 @@ def _run_synthesis_from_review(
         hitl_status=hitl_status,
         risk_level=review.get("risk_level"),
         model_versions=result.get("model_versions"),
+        prompt_versions=result.get("prompt_versions"),
         tokens_consumed=result.get("tokens_consumed"),
         reasoning_steps=result.get("reasoning_steps"),
         duration_ms=duration_ms,
@@ -165,6 +167,7 @@ def _run_synthesis_from_review(
         run_id=review["run_id"],
         tokens_consumed=result.get("tokens_consumed"),
         model_versions=result.get("model_versions"),
+        prompt_versions=result.get("prompt_versions"),
         risk_level=review.get("risk_level"),
         hitl_status=hitl_status,
     )

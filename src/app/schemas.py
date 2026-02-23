@@ -99,6 +99,7 @@ class AnalyzeResponse(BaseModel):
     run_id: Optional[str] = None
     tokens_consumed: Optional[dict] = None
     model_versions: Optional[dict] = None
+    prompt_versions: Optional[dict] = None
     risk_level: Optional[str] = None
     hitl_status: Optional[str] = None
 
@@ -123,6 +124,7 @@ class HITLReviewResponse(BaseModel):
     created_at: Optional[str] = None
     reviewed_at: Optional[str] = None
     model_versions: Optional[dict] = None
+    prompt_versions: Optional[dict] = None
     tokens_consumed: Optional[dict] = None
     reasoning_steps: Optional[list] = None
 

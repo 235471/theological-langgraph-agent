@@ -94,6 +94,7 @@ async def analyze_text(request: AnalyzeRequest):
             run_id=result.run_id,
             tokens_consumed=result.tokens_consumed,
             model_versions=result.model_versions,
+            prompt_versions=result.prompt_versions,
             risk_level=result.risk_level,
             hitl_status="pending",
         )
@@ -104,6 +105,7 @@ async def analyze_text(request: AnalyzeRequest):
         run_id=result.run_id,
         tokens_consumed=result.tokens_consumed,
         model_versions=result.model_versions,
+        prompt_versions=result.prompt_versions,
         risk_level=result.risk_level,
         hitl_status=result.hitl_status,
     )

@@ -36,6 +36,9 @@ class TheologicalState(TypedDict):
     model_versions: Annotated[
         dict, _merge_dicts
     ]  # {"panorama": "gemini-2.5-flash", ...}
+    prompt_versions: Annotated[
+        dict, _merge_dicts
+    ]  # {"panorama_agent": "<prompt_commit_hash>", ...}
     tokens_consumed: Annotated[
         dict, _merge_dicts
     ]  # {"panorama": {"input": N, "output": M}, ...}

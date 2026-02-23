@@ -55,6 +55,7 @@ class AnalysisResult:
     run_id: Optional[str] = None
     tokens_consumed: Optional[dict] = None
     model_versions: Optional[dict] = None
+    prompt_versions: Optional[dict] = None
     risk_level: Optional[str] = None
     hitl_status: Optional[str] = None
     reasoning_steps: Optional[list] = None
@@ -91,6 +92,7 @@ def prepare_agent_state(input_data: AnalysisInput, run_id: str) -> TheologicalSt
         "run_id": run_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "model_versions": {},
+        "prompt_versions": {},
         "tokens_consumed": {},
         "reasoning_steps": [],
         "risk_level": None,
@@ -165,6 +167,7 @@ def run_analysis(input_data: AnalysisInput) -> AnalysisResult:
         # Extract governance metadata from result
         tokens_consumed = result.get("tokens_consumed")
         model_versions = result.get("model_versions")
+        prompt_versions = result.get("prompt_versions")
         reasoning_steps = result.get("reasoning_steps")
         risk_level = result.get("risk_level")
         hitl_status = result.get("hitl_status")
@@ -186,6 +189,7 @@ def run_analysis(input_data: AnalysisInput) -> AnalysisResult:
                 hitl_status="pending",
                 risk_level=risk_level,
                 model_versions=model_versions,
+                prompt_versions=prompt_versions,
                 tokens_consumed=tokens_consumed,
                 reasoning_steps=reasoning_steps,
                 duration_ms=duration_ms,
@@ -196,6 +200,7 @@ def run_analysis(input_data: AnalysisInput) -> AnalysisResult:
                 run_id=run_id,
                 tokens_consumed=tokens_consumed,
                 model_versions=model_versions,
+                prompt_versions=prompt_versions,
                 risk_level=risk_level,
                 hitl_status="pending",
                 reasoning_steps=reasoning_steps,
@@ -215,6 +220,7 @@ def run_analysis(input_data: AnalysisInput) -> AnalysisResult:
                 success=False,
                 error="Agent completed but did not produce a final analysis.",
                 model_versions=model_versions,
+                prompt_versions=prompt_versions,
                 tokens_consumed=tokens_consumed,
                 reasoning_steps=reasoning_steps,
                 duration_ms=duration_ms,
@@ -226,6 +232,7 @@ def run_analysis(input_data: AnalysisInput) -> AnalysisResult:
                 run_id=run_id,
                 tokens_consumed=tokens_consumed,
                 model_versions=model_versions,
+                prompt_versions=prompt_versions,
             )
 
         # Handle structured output
@@ -262,6 +269,7 @@ def run_analysis(input_data: AnalysisInput) -> AnalysisResult:
             success=True,
             final_analysis=final_analysis,
             model_versions=model_versions,
+            prompt_versions=prompt_versions,
             tokens_consumed=tokens_consumed,
             reasoning_steps=reasoning_steps,
             risk_level=risk_level,
@@ -285,6 +293,7 @@ def run_analysis(input_data: AnalysisInput) -> AnalysisResult:
             run_id=run_id,
             tokens_consumed=tokens_consumed,
             model_versions=model_versions,
+            prompt_versions=prompt_versions,
             risk_level=risk_level,
             hitl_status=hitl_status,
             reasoning_steps=reasoning_steps,

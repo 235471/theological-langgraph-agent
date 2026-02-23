@@ -24,6 +24,7 @@ def save_run(
     final_analysis: str = "",
     error: Optional[str] = None,
     model_versions: Optional[dict] = None,
+    prompt_versions: Optional[dict] = None,
     tokens_consumed: Optional[dict] = None,
     reasoning_steps: Optional[list] = None,
     risk_level: Optional[str] = None,
@@ -42,12 +43,12 @@ def save_run(
                     """
                     INSERT INTO analysis_runs (
                         run_id, book, chapter, verses, selected_modules,
-                        model_versions, tokens_consumed, reasoning_steps,
+                        model_versions, prompt_versions, tokens_consumed, reasoning_steps,
                         risk_level, hitl_status, final_analysis,
                         success, error, duration_ms
                     ) VALUES (
                         %s, %s, %s, %s, %s,
-                        %s, %s, %s,
+                        %s, %s, %s, %s,
                         %s, %s, %s,
                         %s, %s, %s
                     )
@@ -65,6 +66,7 @@ def save_run(
                         verses,
                         selected_modules,
                         json.dumps(model_versions) if model_versions else None,
+                        json.dumps(prompt_versions) if prompt_versions else None,
                         json.dumps(tokens_consumed) if tokens_consumed else None,
                         json.dumps(reasoning_steps) if reasoning_steps else None,
                         risk_level,

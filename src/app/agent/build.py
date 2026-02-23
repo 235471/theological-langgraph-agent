@@ -168,6 +168,7 @@ def _build_node_result(
     result = {
         output_field: content,
         "model_versions": {node_name: model_name},
+        "prompt_versions": {node_name: (prompt_commit_hash or "unknown")},
         "tokens_consumed": {node_name: usage},
         "reasoning_steps": [reasoning_entry],
     }
@@ -445,6 +446,7 @@ def hitl_pending_node(state: TheologicalState):
             historical_content=state.get("historical_content"),
             intertextual_content=state.get("intertextual_content"),
             model_versions=state.get("model_versions"),
+            prompt_versions=state.get("prompt_versions"),
             tokens_consumed=state.get("tokens_consumed"),
             reasoning_steps=state.get("reasoning_steps"),
         )

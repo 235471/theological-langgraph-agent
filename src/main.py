@@ -16,6 +16,7 @@ load_dotenv()
 
 from app.utils.logger import setup_logging, get_logger
 from app.database.init_db import init_database
+from app.database.migrations import run_migrations
 from app.database.connection import check_db_health, close_pool
 from app.controller.bible_controller import router as bible_router
 from app.controller.analyze_controller import router as analyze_router
@@ -39,7 +40,23 @@ async def lifespan(app: FastAPI):
         f"Starting Theological Agent API v{_app_version}",
         extra={"event": "startup"},
     )
-    init_database()
+    try:
+        run_migrations()
+    except Exception as migration_err:
+        use_legacy_fallback = os.getenv("DB_INIT_FALLBACK", "false").lower() == "true"
+        logger.error(
+            f"Database migrations failed: {migration_err}",
+            extra={"event": "db_migrations_failed"},
+        )
+        if use_legacy_fallback:
+            logger.warning(
+                "Falling back to legacy init_database() due to DB_INIT_FALLBACK=true",
+                extra={"event": "db_legacy_fallback"},
+            )
+            if not init_database():
+                raise RuntimeError("Legacy init_database() fallback failed")
+        else:
+            raise
 
     yield
 

@@ -6,6 +6,10 @@ WORKDIR /app
 COPY requirements-api.txt .
 RUN pip install --no-cache-dir -r requirements-api.txt
 
+# Copy migration config
+COPY alembic.ini ./
+COPY alembic/ ./alembic/
+
 # Copy API source code
 COPY src/ ./src/
 
@@ -17,4 +21,4 @@ ENV PORT=8000
 
 EXPOSE ${PORT}
 
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT} --app-dir src
+CMD sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port ${PORT} --app-dir src"
