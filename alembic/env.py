@@ -15,10 +15,16 @@ def _normalize_sqlalchemy_url(db_url: str) -> str:
     return db_url
 
 
+def _escape_for_configparser(value: str) -> str:
+    # Alembic Config uses configparser interpolation; raw '%' must be escaped.
+    return value.replace("%", "%%")
+
+
 def _configure_url_from_env() -> None:
     db_url = os.getenv("DB_URL")
     if db_url:
-        config.set_main_option("sqlalchemy.url", _normalize_sqlalchemy_url(db_url))
+        normalized = _normalize_sqlalchemy_url(db_url)
+        config.set_main_option("sqlalchemy.url", _escape_for_configparser(normalized))
 
 
 def run_migrations_offline() -> None:
@@ -59,4 +65,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-

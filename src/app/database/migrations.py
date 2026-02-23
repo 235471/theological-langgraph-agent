@@ -28,6 +28,11 @@ def _normalize_sqlalchemy_url(db_url: str) -> str:
     return db_url
 
 
+def _escape_for_configparser(value: str) -> str:
+    # Alembic Config uses configparser interpolation; raw '%' must be escaped.
+    return value.replace("%", "%%")
+
+
 def _repo_root() -> Path:
     # src/app/database/migrations.py -> repo root is 3 levels above "database"
     return Path(__file__).resolve().parents[3]
@@ -50,7 +55,8 @@ def run_migrations() -> None:
 
     cfg = Config(str(config_path))
     cfg.set_main_option("script_location", str(script_location))
-    cfg.set_main_option("sqlalchemy.url", _normalize_sqlalchemy_url(db_url))
+    normalized = _normalize_sqlalchemy_url(db_url)
+    cfg.set_main_option("sqlalchemy.url", _escape_for_configparser(normalized))
 
     command.upgrade(cfg, "head")
     logger.info("Database migrations applied", extra={"event": "db_migrations_applied"})
