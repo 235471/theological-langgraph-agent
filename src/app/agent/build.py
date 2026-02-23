@@ -9,30 +9,12 @@ Multi-agent theological analysis system with:
 """
 
 import time
-from typing import Literal
-from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 from langgraph.types import Send
 
 from app.agent.agentState import TheologicalState
 from app.agent.model import AnalysisOutput, ValidatorOutput
-from app.utils.prompts import (
-    PANORAMA_PROMPT,
-    LEXICAL_EXEGESIS_PROMPT,
-    HISTORICAL_THEOLOGICAL_PROMPT,
-    INTERTEXTUALITY_PROMPT,
-    THEOLOGICAL_VALIDATOR_PROMPT,
-    SYNTHETIZER_PROMPT,
-)
-from app.client.client import (
-    ModelTier,
-    get_panorama_model,
-    get_lexical_model,
-    get_historical_model,
-    get_intertextual_model,
-    get_validator_model,
-    get_synthesizer_model,
-)
+from app.utils.hub_fallback import execute_with_fallback
 from app.service.hitl_service import save_pending_review
 from app.service.email_service import send_hitl_notification
 from app.utils.logger import get_logger
@@ -164,8 +146,22 @@ def _build_node_result(
         reasoning_entry.update(extra_reasoning)
 
     # Immutable state — reducers in TheologicalState handle merging
+    # Guard: response may be None (structured output parse failed), or response.content
+    # may be None (model filled other fields but left 'content' empty).
+    # Both cases fall back to raw AIMessage content.
+    raw_content = getattr(raw_response, "content", "") if raw_response else ""
+    parsed_content = (
+        getattr(response, "content", None) if response is not None else None
+    )
+    content = sanitize_llm_output(parsed_content or raw_content or "")
+
+    if parsed_content is None and raw_content:
+        logger.error(
+            f"{node_name}: response.content was None, using raw AIMessage content"
+        )
+
     result = {
-        output_field: sanitize_llm_output(response.content),
+        output_field: content,
         "model_versions": {node_name: model_name},
         "tokens_consumed": {node_name: usage},
         "reasoning_steps": [reasoning_entry],
@@ -280,110 +276,90 @@ def route_after_validation(state: TheologicalState) -> str:
 
 
 def panorama_node(state: TheologicalState):
-    """Panorama analysis — FLASH model (gemini-2.5-flash, 5 RPM)."""
+    """Panorama analysis — pulled from LangSmith Hub with local JSON fallback."""
     start = time.time()
-    model = get_panorama_model()
-
-    system_prompt = PANORAMA_PROMPT.format(
-        livro=state["bible_book"],
-        capitulo=state["chapter"],
-        versiculos=" ".join(state["verses"]),
+    response, raw, model_used = execute_with_fallback(
+        prompt_name="theological-agent-panorama-prompt",
+        format_vars={
+            "livro": state["bible_book"],
+            "capitulo": state["chapter"],
+            "versiculos": " ".join(state["verses"]),
+        },
     )
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content="Analise a passagem conforme o contexto canônico."),
-    ]
-    response = model.invoke(messages)
-
     return _build_node_result(
         state,
         "panorama_agent",
-        ModelTier.LITE,
+        model_used,
         response,
         start,
         output_field="panorama_content",
-        raw_response=response,
+        raw_response=raw,
     )
 
 
 def lexical_node(state: TheologicalState):
-    """Lexical exegesis — FLASH model (gemini-2.5-flash, 5 RPM)."""
+    """Lexical exegesis — pulled from LangSmith Hub with local JSON fallback."""
     start = time.time()
-    model = get_lexical_model()
-
-    system_prompt = LEXICAL_EXEGESIS_PROMPT.format(
-        livro=state["bible_book"],
-        capitulo=state["chapter"],
-        versiculos=" ".join(state["verses"]),
+    response, raw, model_used = execute_with_fallback(
+        prompt_name="theological-agent-lexical-prompt",
+        format_vars={
+            "livro": state["bible_book"],
+            "capitulo": state["chapter"],
+            "versiculos": " ".join(state["verses"]),
+        },
     )
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content="Realize a exegese lexical dos principais termos."),
-    ]
-    response = model.invoke(messages)
-
     return _build_node_result(
         state,
         "lexical_agent",
-        ModelTier.FLASH,
+        model_used,
         response,
         start,
         output_field="lexical_content",
-        raw_response=response,
+        raw_response=raw,
     )
 
 
 def historical_node(state: TheologicalState):
-    """Historical-theological analysis — FLASH model (gemini-2.5-flash, 5 RPM)."""
+    """Historical-theological analysis — pulled from LangSmith Hub with local JSON fallback."""
     start = time.time()
-    model = get_historical_model()
-
-    system_prompt = HISTORICAL_THEOLOGICAL_PROMPT.format(
-        livro=state["bible_book"],
-        capitulo=state["chapter"],
-        versiculos=" ".join(state["verses"]),
+    response, raw, model_used = execute_with_fallback(
+        prompt_name="theological-agent-historical-prompt",
+        format_vars={
+            "livro": state["bible_book"],
+            "capitulo": state["chapter"],
+            "versiculos": " ".join(state["verses"]),
+        },
     )
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content="Mapeie as interpretações históricas e teológicas."),
-    ]
-    response = model.invoke(messages)
-
     return _build_node_result(
         state,
         "historical_agent",
-        ModelTier.FLASH,
+        model_used,
         response,
         start,
         output_field="historical_content",
-        raw_response=response,
+        raw_response=raw,
     )
 
 
 def intertextual_node(state: TheologicalState):
-    """Intertextuality analysis — LITE model (gemini-2.5-flash-lite, 10 RPM)."""
+    """Intertextuality analysis — pulled from LangSmith Hub with local JSON fallback."""
     start = time.time()
-    model = get_intertextual_model()
-
-    system_prompt = INTERTEXTUALITY_PROMPT.format(
-        livro=state["bible_book"],
-        capitulo=state["chapter"],
-        versiculos=" ".join(state["verses"]),
+    response, raw, model_used = execute_with_fallback(
+        prompt_name="theological-agent-intertextual-prompt",
+        format_vars={
+            "livro": state["bible_book"],
+            "capitulo": state["chapter"],
+            "versiculos": " ".join(state["verses"]),
+        },
     )
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content="Identifique e analise as conexões intertextuais."),
-    ]
-    response = model.invoke(messages)
-
     return _build_node_result(
         state,
         "intertextual_agent",
-        ModelTier.LITE,
+        model_used,
         response,
         start,
         output_field="intertextual_content",
-        raw_response=response,
+        raw_response=raw,
     )
 
 
@@ -392,36 +368,37 @@ def intertextual_node(state: TheologicalState):
 
 def theological_validator_node(state: TheologicalState):
     """
-    Theological validation — TOP model (gemini-3-flash-preview, 5 RPM).
+    Theological validation — pulled from LangSmith Hub with local JSON fallback.
     Uses ValidatorOutput to extract risk_level and alerts for HITL decisions.
     """
     start = time.time()
-    model = get_validator_model()
-
-    system_prompt = THEOLOGICAL_VALIDATOR_PROMPT.format(
-        panorama_content=state.get("panorama_content") or "",
-        lexical_content=state.get("lexical_content") or "",
-        historical_content=state.get("historical_content") or "",
-        intertextual_content=state.get("intertextual_content") or "",
+    response, raw, model_used = execute_with_fallback(
+        prompt_name="theological-agent-validator-prompt",
+        format_vars={
+            "panorama_content": state.get("panorama_content") or "",
+            "lexical_content": state.get("lexical_content") or "",
+            "historical_content": state.get("historical_content") or "",
+            "intertextual_content": state.get("intertextual_content") or "",
+        },
+        structured_schema=ValidatorOutput,
+        max_tokens=10000,
     )
 
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content="Validate the theological reports."),
-    ]
-    result = model.with_structured_output(ValidatorOutput, include_raw=True).invoke(
-        messages
-    )
-    response = result["parsed"]
-    raw = result["raw"]
-
-    risk_level = getattr(response, "risk_level", "low")
-    alerts = getattr(response, "alerts", [])
+    # Fail-safe: if structured parsing fails, avoid silently defaulting to "low"
+    # and route to HITL for manual review.
+    if response is None:
+        risk_level = "high"
+        alerts = [
+            "Validator structured output parsing failed; manual theological review required."
+        ]
+    else:
+        risk_level = getattr(response, "risk_level", "high")
+        alerts = getattr(response, "alerts", [])
 
     return _build_node_result(
         state,
         "theological_validator",
-        ModelTier.TOP,
+        model_used,
         response,
         start,
         output_field="validation_content",
@@ -489,33 +466,24 @@ def hitl_pending_node(state: TheologicalState):
 
 
 def synthesizer_node(state: TheologicalState):
-    """Final synthesis — TOP model (gemini-3-flash-preview, 5 RPM)."""
+    """Final synthesis — pulled from LangSmith Hub with local JSON fallback."""
     start = time.time()
-    model = get_synthesizer_model()
-
-    system_prompt = SYNTHETIZER_PROMPT.format(
-        panorama_content=state.get("panorama_content") or "",
-        lexical_content=state.get("lexical_content") or "",
-        historical_content=state.get("historical_content") or "",
-        intertextual_content=state.get("intertextual_content") or "",
-        validation_content=state.get("validation_content") or "",
+    response, raw, model_used = execute_with_fallback(
+        prompt_name="theological-agent-synthesizer-prompt",
+        format_vars={
+            "panorama_content": state.get("panorama_content") or "",
+            "lexical_content": state.get("lexical_content") or "",
+            "historical_content": state.get("historical_content") or "",
+            "intertextual_content": state.get("intertextual_content") or "",
+            "validation_content": state.get("validation_content") or "",
+        },
+        structured_schema=AnalysisOutput,
+        max_tokens=10000,
     )
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(
-            content="Write the study based on the reports provided, in Brazilian Portuguese"
-        ),
-    ]
-    result = model.with_structured_output(AnalysisOutput, include_raw=True).invoke(
-        messages
-    )
-    response = result["parsed"]
-    raw = result["raw"]
-
     return _build_node_result(
         state,
         "synthesizer",
-        ModelTier.TOP,
+        model_used,
         response,
         start,
         output_field="final_analysis",
