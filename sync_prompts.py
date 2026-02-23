@@ -40,9 +40,14 @@ def sync_prompts():
                 prompt_name, include_model=True, secrets_from_env=True
             )
 
+            prompt_commit_hash = None
+
             # 1. Extract Messages from the first part of the chain (ChatPromptTemplate)
             extracted_messages = []
             prompt_template = getattr(chain, "first", chain)
+            prompt_metadata = getattr(prompt_template, "metadata", {}) or {}
+            if isinstance(prompt_metadata, dict):
+                prompt_commit_hash = prompt_metadata.get("lc_hub_commit_hash")
 
             if hasattr(prompt_template, "messages"):
                 for msg in prompt_template.messages:
@@ -88,10 +93,11 @@ def sync_prompts():
                 "name": prompt_name,
                 "messages": extracted_messages,
                 "model_config": model_info,
+                "prompt_commit_hash": prompt_commit_hash,
             }
 
             print(
-                f"  -> Success ({len(extracted_messages)} msg, Model: {model_info.get('model_name')})"
+                f"  -> Success ({len(extracted_messages)} msg, Model: {model_info.get('model_name')}, Commit: {prompt_commit_hash or 'unknown'})"
             )
             success_count += 1
 

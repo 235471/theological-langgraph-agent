@@ -53,12 +53,21 @@ def execute_with_fallback(
                    braces in markdown content like panorama_content).
 
     Returns:
-        Tuple (response, raw_aimessage, model_name_used)
+        Tuple (response, raw_aimessage, model_name_used, prompt_commit_hash)
     """
     # ─── PRIMARY: LangSmith Hub ────────────────────────────────────────────────
     try:
         chain = _get_ls_client().pull_prompt(
             prompt_name, include_model=True, secrets_from_env=True
+        )
+        prompt_template = getattr(chain, "first", None)
+        prompt_metadata = (
+            getattr(prompt_template, "metadata", {}) if prompt_template else {}
+        )
+        prompt_commit_hash = (
+            prompt_metadata.get("lc_hub_commit_hash")
+            if isinstance(prompt_metadata, dict)
+            else None
         )
 
         # Resolve actual model name for governance tracking
@@ -79,11 +88,11 @@ def execute_with_fallback(
                     f"Structured output parsing returned None for '{prompt_name}'. "
                     "The model may have returned unstructured content. Triggering fallback."
                 )
-            return parsed, result["raw"], model_name_used
+            return parsed, result["raw"], model_name_used, prompt_commit_hash
         else:
             # chain = prompt | model; format_vars injected natively via invoke()
             result = chain.invoke(format_vars)
-            return result, result, model_name_used
+            return result, result, model_name_used, prompt_commit_hash
 
     except Exception as hub_err:
         logger.warning(
@@ -111,6 +120,7 @@ def execute_with_fallback(
         model_cfg = fallback_data.get("model_config", {})
         model_name_used = model_cfg.get("model_name", "gemini-2.5-flash")
         temp_used = model_cfg.get("temperature", 0.2)
+        prompt_commit_hash = fallback_data.get("prompt_commit_hash") or "unknown"
 
         # GOOGLE_API_KEY comes from env (.env locally / Render secret in prod)
         model = get_llm_client(
@@ -136,10 +146,15 @@ def execute_with_fallback(
             result = model.with_structured_output(
                 structured_schema, include_raw=True
             ).invoke(msgs)
-            return result["parsed"], result["raw"], f"{model_name_used} [fallback]"
+            return (
+                result["parsed"],
+                result["raw"],
+                f"{model_name_used} [fallback]",
+                prompt_commit_hash,
+            )
         else:
             result = model.invoke(msgs)
-            return result, result, f"{model_name_used} [fallback]"
+            return result, result, f"{model_name_used} [fallback]", prompt_commit_hash
 
     except Exception as fallback_err:
         logger.error(f"Fallback also failed for '{prompt_name}': {fallback_err}")

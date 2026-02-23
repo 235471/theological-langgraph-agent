@@ -88,6 +88,7 @@ def _build_node_result(
     start_time: float,
     output_field: str,
     raw_response=None,
+    prompt_commit_hash: str | None = None,
     extra_fields: dict | None = None,
     extra_reasoning: dict | None = None,
 ) -> dict:
@@ -131,6 +132,8 @@ def _build_node_result(
         "duration_ms": duration_ms,
         "run_id": state.get("run_id"),
     }
+    if prompt_commit_hash:
+        log_extra["prompt_commit_hash"] = prompt_commit_hash
     if extra_reasoning:
         log_extra.update(extra_reasoning)
     logger.info(f"{node_name} completed", extra=log_extra)
@@ -142,6 +145,8 @@ def _build_node_result(
         "tokens": usage,
         "duration_ms": duration_ms,
     }
+    if prompt_commit_hash:
+        reasoning_entry["prompt_commit_hash"] = prompt_commit_hash
     if extra_reasoning:
         reasoning_entry.update(extra_reasoning)
 
@@ -278,7 +283,7 @@ def route_after_validation(state: TheologicalState) -> str:
 def panorama_node(state: TheologicalState):
     """Panorama analysis — pulled from LangSmith Hub with local JSON fallback."""
     start = time.time()
-    response, raw, model_used = execute_with_fallback(
+    response, raw, model_used, prompt_commit_hash = execute_with_fallback(
         prompt_name="theological-agent-panorama-prompt",
         format_vars={
             "livro": state["bible_book"],
@@ -294,13 +299,14 @@ def panorama_node(state: TheologicalState):
         start,
         output_field="panorama_content",
         raw_response=raw,
+        prompt_commit_hash=prompt_commit_hash,
     )
 
 
 def lexical_node(state: TheologicalState):
     """Lexical exegesis — pulled from LangSmith Hub with local JSON fallback."""
     start = time.time()
-    response, raw, model_used = execute_with_fallback(
+    response, raw, model_used, prompt_commit_hash = execute_with_fallback(
         prompt_name="theological-agent-lexical-prompt",
         format_vars={
             "livro": state["bible_book"],
@@ -316,13 +322,14 @@ def lexical_node(state: TheologicalState):
         start,
         output_field="lexical_content",
         raw_response=raw,
+        prompt_commit_hash=prompt_commit_hash,
     )
 
 
 def historical_node(state: TheologicalState):
     """Historical-theological analysis — pulled from LangSmith Hub with local JSON fallback."""
     start = time.time()
-    response, raw, model_used = execute_with_fallback(
+    response, raw, model_used, prompt_commit_hash = execute_with_fallback(
         prompt_name="theological-agent-historical-prompt",
         format_vars={
             "livro": state["bible_book"],
@@ -338,13 +345,14 @@ def historical_node(state: TheologicalState):
         start,
         output_field="historical_content",
         raw_response=raw,
+        prompt_commit_hash=prompt_commit_hash,
     )
 
 
 def intertextual_node(state: TheologicalState):
     """Intertextuality analysis — pulled from LangSmith Hub with local JSON fallback."""
     start = time.time()
-    response, raw, model_used = execute_with_fallback(
+    response, raw, model_used, prompt_commit_hash = execute_with_fallback(
         prompt_name="theological-agent-intertextual-prompt",
         format_vars={
             "livro": state["bible_book"],
@@ -360,6 +368,7 @@ def intertextual_node(state: TheologicalState):
         start,
         output_field="intertextual_content",
         raw_response=raw,
+        prompt_commit_hash=prompt_commit_hash,
     )
 
 
@@ -372,7 +381,7 @@ def theological_validator_node(state: TheologicalState):
     Uses ValidatorOutput to extract risk_level and alerts for HITL decisions.
     """
     start = time.time()
-    response, raw, model_used = execute_with_fallback(
+    response, raw, model_used, prompt_commit_hash = execute_with_fallback(
         prompt_name="theological-agent-validator-prompt",
         format_vars={
             "panorama_content": state.get("panorama_content") or "",
@@ -403,6 +412,7 @@ def theological_validator_node(state: TheologicalState):
         start,
         output_field="validation_content",
         raw_response=raw,
+        prompt_commit_hash=prompt_commit_hash,
         extra_fields={"risk_level": risk_level},
         extra_reasoning={"risk_level": risk_level, "alerts": alerts},
     )
@@ -468,7 +478,7 @@ def hitl_pending_node(state: TheologicalState):
 def synthesizer_node(state: TheologicalState):
     """Final synthesis — pulled from LangSmith Hub with local JSON fallback."""
     start = time.time()
-    response, raw, model_used = execute_with_fallback(
+    response, raw, model_used, prompt_commit_hash = execute_with_fallback(
         prompt_name="theological-agent-synthesizer-prompt",
         format_vars={
             "panorama_content": state.get("panorama_content") or "",
@@ -488,6 +498,7 @@ def synthesizer_node(state: TheologicalState):
         start,
         output_field="final_analysis",
         raw_response=raw,
+        prompt_commit_hash=prompt_commit_hash,
     )
 
 

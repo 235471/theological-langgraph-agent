@@ -27,6 +27,7 @@ class JSONFormatter(logging.Formatter):
             "run_id",
             "node",
             "model",
+            "prompt_commit_hash",
             "tokens",
             "duration_ms",
             "risk_level",

@@ -14,7 +14,8 @@
         "model_config": {
             "model_name": "gemini-2.5-flash-lite",
             "temperature": 0.2
-        }
+        },
+        "prompt_commit_hash": "be9b095fcc334b9eed59566a8f556c263b1b99bc7ebd2e669ee7a2dda8b5ff6f"
     },
     "theological-agent-lexical-prompt": {
         "name": "theological-agent-lexical-prompt",
@@ -31,7 +32,8 @@
         "model_config": {
             "model_name": "gemini-2.5-flash",
             "temperature": 0.1
-        }
+        },
+        "prompt_commit_hash": "9b398cdf4596c41d7b248fd9c1ba42c698b4c83066bec1260632e22a3a72fbc9"
     },
     "theological-agent-historical-prompt": {
         "name": "theological-agent-historical-prompt",
@@ -48,7 +50,8 @@
         "model_config": {
             "model_name": "gemini-2.5-flash",
             "temperature": 0.2
-        }
+        },
+        "prompt_commit_hash": "54ea60e318b4b06a97558836862d4c9ecd9ddabcfcb5a8c5382a1bb505daf9c2"
     },
     "theological-agent-intertextual-prompt": {
         "name": "theological-agent-intertextual-prompt",
@@ -65,7 +68,8 @@
         "model_config": {
             "model_name": "gemini-2.5-flash-lite",
             "temperature": 0.2
-        }
+        },
+        "prompt_commit_hash": "a81fe510c1363230e8398063ca304232e55fd4c58e4054aabe6ed0d550ab6770"
     },
     "theological-agent-validator-prompt": {
         "name": "theological-agent-validator-prompt",
@@ -82,7 +86,8 @@
         "model_config": {
             "model_name": "gemini-3-flash-preview",
             "temperature": 0.1
-        }
+        },
+        "prompt_commit_hash": "fd008ab37716ff16c0e01e777166b27906cd01c7576b98773452ed89380a3702"
     },
     "theological-agent-synthesizer-prompt": {
         "name": "theological-agent-synthesizer-prompt",
@@ -99,6 +104,7 @@
         "model_config": {
             "model_name": "gemini-3-flash-preview",
             "temperature": 0.4
-        }
+        },
+        "prompt_commit_hash": "468436d302644023870e8d84d0c6ca11bbebac029f4d9d6539ffb98dc6fc8ae3"
     }
 }
