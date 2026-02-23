@@ -105,6 +105,12 @@ Cada chamada ao LLM já retorna `usage_metadata`. Extraímos e propagamos pelo e
 
 Isso proporciona observabilidade completa sem chamadas de API adicionais ou serviços externos.
 
+### Gerenciamento de Prompts e Resiliência
+
+A engenharia de prompts é abstraída da base de código principal usando o **LangSmith Prompt Hub**:
+- **Hot-swapping:** Os prompts podem ser refinados, testados e publicados na interface do LangSmith sem alterar o código ou exigir redeploy.
+- **Fallback Sem Indisponibilidade (Zero-Downtime):** Um script de sincronização (`sync_prompts.py`) faz o download dos prompts publicados para um arquivo local `prompts_fallback.json`. Se o LangSmith ficar offline ou houver rate-limit, o wrapper `hub_fallback.py` captura a exceção de forma transparente, injeta a `GOOGLE_API_KEY` original do ambiente e executa a chamada ao LLM usando a réplica JSON offline.
+
 ### Estratégia de Cache
 
 Requisições idênticas (mesmo livro + capítulo + versículos + módulos) são cacheadas usando **hash SHA-256**:
@@ -123,6 +129,7 @@ Requisições idênticas (mesmo livro + capítulo + versículos + módulos) são
 - **Trilha de Auditoria** — Todo run persistido (sucesso + falha) no PostgreSQL
 - **Logging JSON/YAML Estruturado** — Logs machine-parseable com correlação `run_id` (ver [`samples/`](samples/))
     > **Insight de Engenharia:** A arquitetura foi desenhada para ser **'Observable-by-Design'**. Através de logs estruturados (JSON/YAML), capturamos o consumo de tokens e a latência de cada agente de forma atômica. Isso permite não apenas a auditoria de segurança (*risk_level*), mas também uma análise financeira precisa (ROI) e a otimização contínua da experiência do usuário (UX).    
+- **Prompt Hub + Fallback** — Prompts gerenciados via LangSmith com réplica JSON local para fallback offline
 - **Cadeia de Fallback** — Fallback automático de modelo em 429/depreciação
 - **Docker + Render** — Deploy em produção com keep-alive cron
 - **Integração LangSmith** — Observabilidade e tracing completos
@@ -251,10 +258,13 @@ theological-langgraph-agent/
 │   │   │   ├── connection.py           # Pool PostgreSQL (Supabase)
 │   │   │   └── init_db.py             # Bootstrap idempotente de tabelas
 │   │   ├── utils/
-│   │   │   ├── prompts.py             # Prompts do sistema (todos os agentes)
-│   │   │   └── logger.py             # Logging JSON estruturado
+│   │   │   ├── hub_fallback.py        # Execução via LangSmith Hub c/ mecanismo de fallback offline
+│   │   │   ├── fallbacks/
+│   │   │   │   └── prompts_fallback.json # Réplica offline dos prompts do LangSmith
+│   │   │   └── logger.py              # Logging JSON estruturado
 │   │   └── schemas.py                 # Pydantic request/response + schemas HITL
 │   └── main.py                        # App FastAPI com eventos de lifecycle
+├── sync_prompts.py                    # Script para baixar prompts do LangSmith p/ JSON local
 ├── streamlit/
 │   ├── streamlit_app.py               # Frontend com badges de governança
 │   ├── api_client.py                  # Cliente HTTP com fallback local
