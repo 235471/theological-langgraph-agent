@@ -14,6 +14,7 @@ Deep-dive nos detalhes de implementação do Theological LangGraph Agent. Para a
 
 - [Implementação LangGraph](#implementação-langgraph)
 - [Estratégia de Modelos](#estratégia-de-modelos)
+- [Gerenciamento de Prompts e Resiliência](#gerenciamento-de-prompts-e-resiliência)
 - [Camada de Governança](#camada-de-governança)
 - [Fluxo HITL](#fluxo-hitl)
 - [Schema do Banco de Dados](#schema-do-banco-de-dados)
@@ -148,6 +149,33 @@ Se o modelo primário retorna 429 (rate limited) ou está depreciado, o cliente 
 
 ---
 
+## Gerenciamento de Prompts e Resiliência
+
+A engenharia de prompts é desacoplada da lógica core via **LangSmith Prompt Hub**, garantindo agilidade sem necessidade de redeploy.
+
+### Modelo de Execução Híbrido
+
+1. **Primário (Hub):** O nó tenta baixar o prompt publicado mais recente do LangSmith.
+2. **Fallback (JSON Local):** Se a chamada ao Hub falhar (rede, 429, erros de chave de API), o sistema degrada automaticamente para uma réplica JSON local em `src/app/utils/fallbacks/`.
+3. **Utilitário de Resiliência:** O utilitário `hub_fallback.py` gerencia essa transição, garantindo que a `GOOGLE_API_KEY` obrigatória seja preservada mesmo quando o `secrets_from_env` do LangSmith falha.
+
+### Rastreamento de Versão
+
+Cada execução de prompt captura o **Hash de Commit do Prompt** para garantir auditabilidade total:
+- **Modo Hub:** Extrai o `lc_hub_commit_hash` dos metadados do LangSmith.
+- **Modo Fallback:** Usa o hash armazenado no `prompts_fallback.json` durante a última sincronização.
+- **Propagação:** O hash é injetado nos `reasoning_steps` e nos logs estruturados.
+
+### Script de Sincronização
+
+Um script utilitário `sync_prompts.py` é usado para atualizar o cache de fallback local:
+- Extrai templates de mensagens e configurações de modelo (temperatura/model_name).
+- Captura e armazena o hash de commit específico.
+- **Frequência:** Altamente recomendado executar este script durante o CI/CD para garantir que o JSON local reflita os prompts mais recentes aprovados em produção no Hub.
+
+
+---
+
 ## Camada de Governança
 
 ### Rastreamento de Tokens
@@ -181,7 +209,19 @@ Cada nó adiciona um passo de raciocínio ao estado:
 Logs formatados em JSON com correlação `run_id` para rastreamento entre nós:
 
 ```json
-{"timestamp": "2026-02-15T04:13:01Z", "level": "INFO", "logger": "app.agent.build", "message": "panorama_agent completed", "event": "node_complete", "node": "panorama_agent", "model": "gemini-2.5-flash", "tokens": {"input": 1200, "output": 3400}, "duration_ms": 8500, "run_id": "a1b2c3d4"}
+{
+  "timestamp": "2026-02-15T04:13:01Z",
+  "level": "INFO",
+  "logger": "app.agent.build",
+  "message": "panorama_agent completed",
+  "event": "node_complete",
+  "node": "panorama_agent",
+  "model": "gemini-2.5-flash",
+  "prompt_commit_hash": "a7b2c...",
+  "tokens": {"input": 1200, "output": 3400},
+  "duration_ms": 8500,
+  "run_id": "a1b2c3d4"
+}
 ```
 
 > **Exemplo Real:** Veja [`samples/`](../samples/) para logs de entrada/saída reais mostrando uso de tokens e passos de raciocínio.

@@ -14,6 +14,7 @@ Deep-dive into the implementation details of the Theological LangGraph Agent. Fo
 
 - [LangGraph Implementation](#langgraph-implementation)
 - [Model Strategy](#model-strategy)
+- [Prompt Management & Resilience](#prompt-management--resilience)
 - [Governance Layer](#governance-layer)
 - [HITL Flow](#hitl-flow)
 - [Database Schema](#database-schema)
@@ -148,6 +149,33 @@ If the primary model returns 429 (rate limited) or is deprecated, the client tra
 
 ---
 
+## Prompt Management & Resilience
+
+Prompt engineering is decoupled from the core logic via **LangSmith Prompt Hub**, ensuring agility without redeployment.
+
+### Hybrid Execution Model
+
+1. **Primary (Hub):** Node attempts to pull the latest published prompt from LangSmith.
+2. **Fallback (Local JSON):** If the Hub call fails (network, 429, API key errors), it automatically degrades to a local JSON replica in `src/app/utils/fallbacks/`.
+3. **Resilience Utility:** The `hub_fallback.py` utility manages this transition, ensuring the mandatory `GOOGLE_API_KEY` is preserved even when LangSmith's `secrets_from_env` fails.
+
+### Version Tracking
+
+Every prompt execution captures the **Prompt Commit Hash** to ensure full auditability:
+- **Hub mode:** Extracts `lc_hub_commit_hash` from LangSmith's metadata.
+- **Fallback mode:** Uses the hash stored in `prompts_fallback.json` during the last sync.
+- **Propagation:** The hash is injected into `reasoning_steps` and structured logs.
+
+### Synchronization Script
+
+A utility script `sync_prompts.py` is used to update the local fallback cache:
+- Extracts message templates and model configurations (temperature/model_name).
+- Captures and stores the specific commit hash.
+- **Frequency:** Highly recommended to run this script during CI/CD to ensure the local JSON reflects the latest production-approved prompts from the Hub.
+
+
+---
+
 ## Governance Layer
 
 ### Token Tracking
@@ -181,7 +209,19 @@ Each node appends a reasoning step to the state:
 JSON formatted logs with `run_id` correlation for tracing across nodes:
 
 ```json
-{"timestamp": "2026-02-15T04:13:01Z", "level": "INFO", "logger": "app.agent.build", "message": "panorama_agent completed", "event": "node_complete", "node": "panorama_agent", "model": "gemini-2.5-flash", "tokens": {"input": 1200, "output": 3400}, "duration_ms": 8500, "run_id": "a1b2c3d4"}
+{
+  "timestamp": "2026-02-15T04:13:01Z",
+  "level": "INFO",
+  "logger": "app.agent.build",
+  "message": "panorama_agent completed",
+  "event": "node_complete",
+  "node": "panorama_agent",
+  "model": "gemini-2.5-flash",
+  "prompt_commit_hash": "a7b2c...",
+  "tokens": {"input": 1200, "output": 3400},
+  "duration_ms": 8500,
+  "run_id": "a1b2c3d4"
+}
 ```
 
 > **Live Example:** See [`samples/`](../samples/) for real-world input/output logs showing token usage and reasoning steps.
