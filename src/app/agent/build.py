@@ -9,17 +9,24 @@ Multi-agent theological analysis system with:
 """
 
 import time
+from types import SimpleNamespace
 from langgraph.graph import StateGraph, END
 from langgraph.types import Send
 
 from app.agent.agentState import TheologicalState
 from app.agent.model import AnalysisOutput, ValidatorOutput
+from app.client.client import ModelTier
 from app.utils.hub_fallback import execute_with_fallback
 from app.service.hitl_service import save_pending_review
+from app.service.lexical_grounding_service import run_lexical_grounding
 from app.service.email_service import send_hitl_notification
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
+NEUTRAL_GROUNDED_CONTEXT = (
+    "Grounding lexical indisponível nesta execução. "
+    "Use análise lexical conservadora, sem extrapolações."
+)
 
 
 # --- Helpers ---
@@ -305,16 +312,79 @@ def panorama_node(state: TheologicalState):
 
 
 def lexical_node(state: TheologicalState):
-    """Lexical exegesis — pulled from LangSmith Hub with local JSON fallback."""
+    """Lexical exegesis — grounded by ADK with resilient prompt fallback strategy."""
     start = time.time()
-    response, raw, model_used, prompt_commit_hash = execute_with_fallback(
-        prompt_name="theological-agent-lexical-prompt",
-        format_vars={
-            "livro": state["bible_book"],
-            "capitulo": state["chapter"],
-            "versiculos": " ".join(state["verses"]),
-        },
+
+    format_vars_base = {
+        "livro": state["bible_book"],
+        "capitulo": state["chapter"],
+        "versiculos": " ".join(state["verses"]),
+    }
+    grounding = run_lexical_grounding(
+        book=state["bible_book"],
+        chapter=state["chapter"],
+        verses=state["verses"],
     )
+
+    response = raw = model_used = prompt_commit_hash = None
+    lexical_prompt_mode = "adk_single_pass"
+    grounding_error = grounding.error
+    if not grounding.used_grounding and not grounding_error:
+        grounding_error = "grounding_returned_no_content"
+
+    if grounding.used_grounding:
+        response = SimpleNamespace(
+            content=grounding.lexical_report_markdown,
+            usage_metadata={
+                "input_tokens": grounding.tokens_consumed.get("input", 0),
+                "output_tokens": grounding.tokens_consumed.get("output", 0),
+            },
+        )
+        raw = None
+        model_used = f"{ModelTier.FLASH} [adk-single-pass]"
+        prompt_commit_hash = grounding.prompt_commit_hash
+    else:
+        try:
+            response, raw, model_used, prompt_commit_hash = execute_with_fallback(
+                prompt_name="theological-agent-lexical-prompt-legacy",
+                format_vars=format_vars_base,
+            )
+            lexical_prompt_mode = "legacy"
+        except Exception as legacy_err:
+            lexical_prompt_mode = "grounded_neutral_fallback"
+            combined_error = (
+                f"{grounding_error} | legacy_prompt_error: {legacy_err}"
+                if grounding_error
+                else f"legacy_prompt_error: {legacy_err}"
+            )
+            grounding_error = combined_error
+            logger.warning(
+                "Legacy lexical prompt unavailable; falling back to grounded prompt with neutral context.",
+                extra={
+                    "event": "lexical_legacy_prompt_unavailable",
+                    "run_id": state.get("run_id"),
+                    "error": str(legacy_err),
+                },
+            )
+            response, raw, model_used, prompt_commit_hash = execute_with_fallback(
+                prompt_name="theological-agent-lexical-prompt",
+                format_vars={
+                    **format_vars_base,
+                    "grounded_lexical_context": NEUTRAL_GROUNDED_CONTEXT,
+                },
+            )
+
+    extra_fields = None
+    if lexical_prompt_mode == "adk_single_pass":
+        # Use the real prompt version from LangSmith/fallback, not a hardcoded string.
+        adk_prompt_version = (
+            grounding.prompt_commit_hash or f"adk-{grounding.prompt_source}"
+        )
+        extra_fields = {"prompt_versions": {"lexical_agent": adk_prompt_version}}
+
+    grounding_attempted = grounding.used_grounding or bool(grounding_error)
+    grounding_success = grounding.used_grounding
+
     return _build_node_result(
         state,
         "lexical_agent",
@@ -324,6 +394,19 @@ def lexical_node(state: TheologicalState):
         output_field="lexical_content",
         raw_response=raw,
         prompt_commit_hash=prompt_commit_hash,
+        extra_fields=extra_fields,
+        extra_reasoning={
+            "grounding_attempted": grounding_attempted,
+            "grounding_success": grounding_success,
+            "used_grounding": grounding.used_grounding,
+            "grounding_sources_count": len(grounding.sources),
+            "grounding_provider": grounding.provider,
+            "grounding_error": grounding_error,
+            "grounding_duration_ms": grounding.duration_ms,
+            "grounding_search_calls": grounding.search_calls,
+            "grounding_tokens": grounding.tokens_consumed,
+            "lexical_prompt_mode": lexical_prompt_mode,
+        },
     )
 
 

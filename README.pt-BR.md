@@ -40,7 +40,7 @@ A exegese bíblica tradicionalmente requer horas de pesquisa manual em léxicos,
 ```mermaid
 graph TD
     R[Função Router] -->|Send| P[Agente Panorama<br/>FLASH]
-    R -->|Send| L[Agente Léxico<br/>FLASH]
+    R -->|Send| L[Agente Léxico<br/>ADK + FLASH]
     R -->|Send| H[Agente Histórico<br/>FLASH]
     R -->|Send| I[Agente Intertextual<br/>LITE]
 
@@ -104,6 +104,15 @@ Cada chamada ao LLM já retorna `usage_metadata`. Extraímos e propagamos pelo e
 - **Logs JSON estruturados** com correlação `run_id`
 
 Isso proporciona observabilidade completa sem chamadas de API adicionais ou serviços externos.
+
+### Agent-in-an-Agent (Grounding com ADK)
+
+O Agente Léxico utiliza o **Agent Development Kit (ADK)** do Google para realizar uma exegese fundamentada em buscas na web. Ao invés de dividir a busca e a geração em múltiplas chamadas ao LLM, implementamos uma **arquitetura ADK de passagem única (single-pass)**:
+- O ADK busca autonomamente fontes acadêmicas/lexicográficas e sintetiza o relatório markdown final.
+- Mantemos observabilidade completa extraindo profundamente o `usage_metadata` do stream de eventos binários do ADK e canalizando-o para a telemetria central do nosso LangGraph.
+- Se o ADK exceder o timeout de `15s` ou não retornar conteúdo de alta qualidade, o nó faz um fallback perfeito para um prompt LangChain legado, rápido e sem grounding.
+
+> 📄 **Aprofundamento:** Consulte a [Referência de Integração ADK](docs/adk-integration.md) (em inglês) para detalhes específicos sobre sincronização de threads, extração de telemetria e o padrão de fallback.
 
 ### Gerenciamento de Prompts e Resiliência
 

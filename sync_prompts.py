@@ -9,6 +9,7 @@ load_dotenv()
 PROMPTS_TO_SYNC = [
     "theological-agent-panorama-prompt",
     "theological-agent-lexical-prompt",
+    "theological-agent-lexical-prompt-legacy",
     "theological-agent-historical-prompt",
     "theological-agent-intertextual-prompt",
     "theological-agent-validator-prompt",

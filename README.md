@@ -40,7 +40,7 @@ Biblical exegesis traditionally requires hours of manual research across lexicon
 ```mermaid
 graph TD
     R[Router Function] -->|Send| P[Panorama Agent<br/>FLASH]
-    R -->|Send| L[Lexical Agent<br/>FLASH]
+    R -->|Send| L[Lexical Agent<br/>ADK + FLASH]
     R -->|Send| H[Historical Agent<br/>FLASH]
     R -->|Send| I[Intertextual Agent<br/>LITE]
 
@@ -104,6 +104,15 @@ Every LLM call already returns `usage_metadata`. We extract it and propagate thr
 - **Structured JSON logs** with `run_id` correlation
 
 This gives full observability without any extra API calls or external services.
+
+### Agent-in-an-Agent (ADK Grounding)
+
+The Lexical Agent leverages Google's **Agent Development Kit (ADK)** to perform web-grounded exegesis. Rather than splitting search and generation into multiple LLM calls, we implemented a **single-pass ADK architecture**:
+- The ADK autonomously searches for academic/lexicographic sources and synthesizes the final markdown report.
+- We maintain full observability by deeply extracting the `usage_metadata` from the ADK's binary event stream and piping it into our central LangGraph telemetry.
+- If the ADK exceeds the `35000ms` timeout or fails to return high-quality content, the node seamlessly falls back to a fast, non-grounded legacy LangChain prompt.
+
+> 📄 **Deep Dive:** See [ADK Integration Reference](docs/adk-integration.md) for specifics on the threading syncs, telemetry extraction, and the fallback pattern.
 
 ### Prompt Management & Resilience
 
