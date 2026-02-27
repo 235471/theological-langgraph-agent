@@ -53,6 +53,7 @@ class AnalysisResult:
     error: Optional[str] = None
     from_cache: bool = False
     run_id: Optional[str] = None
+    langsmith_run_id: Optional[str] = None
     tokens_consumed: Optional[dict] = None
     model_versions: Optional[dict] = None
     prompt_versions: Optional[dict] = None
@@ -152,16 +153,30 @@ def run_analysis(input_data: AnalysisInput) -> AnalysisResult:
                 success=True,
                 from_cache=True,
                 run_id=run_id,
+                langsmith_run_id=None,
                 duration_ms=duration_ms,
             )
     except Exception as e:
         logger.warning(f"Cache check failed, proceeding without cache: {e}")
 
     # --- Agent Execution ---
+    langsmith_run_id = str(uuid.uuid4())
     try:
         initial_state = prepare_agent_state(input_data, run_id)
         graph = build_graph()
-        result = graph.invoke(initial_state)
+        result = graph.invoke(
+            initial_state,
+            config={
+                "run_id": uuid.UUID(langsmith_run_id),
+                "run_name": "theological_analysis_graph",
+                "metadata": {
+                    "app_run_id": run_id,
+                    "book": input_data.book,
+                    "chapter": input_data.chapter,
+                },
+                "tags": ["analysis", "theological-agent"],
+            },
+        )
         duration_ms = int((time.time() - start_time) * 1000)
 
         # Extract governance metadata from result
@@ -198,6 +213,7 @@ def run_analysis(input_data: AnalysisInput) -> AnalysisResult:
                 final_analysis="",
                 success=True,
                 run_id=run_id,
+                langsmith_run_id=langsmith_run_id,
                 tokens_consumed=tokens_consumed,
                 model_versions=model_versions,
                 prompt_versions=prompt_versions,
@@ -230,6 +246,7 @@ def run_analysis(input_data: AnalysisInput) -> AnalysisResult:
                 success=False,
                 error="Agent completed but did not produce a final analysis.",
                 run_id=run_id,
+                langsmith_run_id=langsmith_run_id,
                 tokens_consumed=tokens_consumed,
                 model_versions=model_versions,
                 prompt_versions=prompt_versions,
@@ -291,6 +308,7 @@ def run_analysis(input_data: AnalysisInput) -> AnalysisResult:
             final_analysis=final_analysis,
             success=True,
             run_id=run_id,
+            langsmith_run_id=langsmith_run_id,
             tokens_consumed=tokens_consumed,
             model_versions=model_versions,
             prompt_versions=prompt_versions,
@@ -317,6 +335,7 @@ def run_analysis(input_data: AnalysisInput) -> AnalysisResult:
             success=False,
             error=str(e),
             run_id=run_id,
+            langsmith_run_id=langsmith_run_id,
             duration_ms=duration_ms,
         )
 

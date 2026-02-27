@@ -71,6 +71,10 @@ class APIClient:
             # Fallback para execução direta (Streamlit Cloud)
             try:
                 from app.service.analysis_service import run_analysis, AnalysisInput
+                try:
+                    from app.service.trace_service import export_graph_trace
+                except Exception:
+                    export_graph_trace = None
 
                 input_data = AnalysisInput(
                     book=payload["book"],
@@ -80,6 +84,17 @@ class APIClient:
                 )
 
                 result = run_analysis(input_data)
+                if (
+                    export_graph_trace
+                    and not result.from_cache
+                    and result.run_id
+                    and result.langsmith_run_id
+                ):
+                    try:
+                        export_graph_trace(result.run_id, result.langsmith_run_id)
+                    except Exception as trace_err:
+                        print(f"Direct-call trace export failed: {trace_err}")
+
                 if result.success:
                     return {
                         "final_analysis": result.final_analysis,

@@ -6,7 +6,7 @@ business logic to the analysis service.
 """
 
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 
 from app.schemas import AnalyzeRequest, AnalyzeResponse
@@ -15,6 +15,7 @@ from app.service.analysis_service import (
     AnalysisInput,
     run_analysis,
 )
+from app.service.trace_service import export_graph_trace
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Analysis"])
@@ -26,7 +27,7 @@ router = APIRouter(tags=["Analysis"])
     summary="Analyze biblical text",
     description="Sends selected verses to the theological agent for multi-module analysis.",
 )
-async def analyze_text(request: AnalyzeRequest):
+async def analyze_text(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     """
     Analyze biblical text using the theological multi-agent system.
 
@@ -78,10 +79,23 @@ async def analyze_text(request: AnalyzeRequest):
 
     # --- Response Handling ---
     if not result.success:
+        if result.run_id and result.langsmith_run_id:
+            await run_in_threadpool(
+                export_graph_trace,
+                result.run_id,
+                result.langsmith_run_id,
+            )
         logger.error(f"Analysis returned failure: {result.error}")
         raise HTTPException(
             status_code=500,
             detail=f"Agent execution failed: {result.error}",
+        )
+
+    if not result.from_cache and result.run_id and result.langsmith_run_id:
+        background_tasks.add_task(
+            export_graph_trace,
+            result.run_id,
+            result.langsmith_run_id,
         )
 
     # HITL pending — return 202 Accepted with governance info

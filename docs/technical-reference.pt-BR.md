@@ -287,7 +287,7 @@ async def approve_review(run_id: str, body: HITLApproveRequest):
 
 ## Schema do Banco de Dados
 
-Três tabelas no Supabase PostgreSQL, criadas de forma idempotente na inicialização da aplicação:
+Quatro tabelas no Supabase PostgreSQL:
 
 ### `analysis_runs`
 | Coluna | Tipo | Descrição |
@@ -324,6 +324,23 @@ Três tabelas no Supabase PostgreSQL, criadas de forma idempotente na inicializa
 | `metadata` | JSONB | Versões de modelo, tokens, raciocínio |
 | `created_at` | TIMESTAMPTZ | Criação da revisão |
 | `reviewed_at` | TIMESTAMPTZ | Conclusão da revisão |
+
+### `graph_run_traces`
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| `run_id` | VARCHAR(36) UNIQUE FK | Link para `analysis_runs.run_id` |
+| `langsmith_run_id` | VARCHAR(36) | Identificador do trace/run no LangSmith |
+| `storage_path` | TEXT | Caminho do objeto no Supabase Storage |
+| `size_bytes` | INTEGER | Tamanho do arquivo de trace salvo |
+| `status` | VARCHAR(20) | uploaded / failed / skipped |
+| `error_message` | TEXT | Motivo de falha/skip quando aplicável |
+| `created_at` | TIMESTAMPTZ | Criação do registro de trace |
+
+### Comportamento de Runtime da Exportação de Trace
+
+- `POST /analyze` (sucesso ou HITL pendente): a exportação do trace é agendada como tarefa em background no FastAPI para reduzir latência de resposta.
+- `POST /analyze` (caminho HTTP 500): a exportação do trace é tentada de forma síncrona antes de retornar o erro.
+- Fallback direct-call do Streamlit (quando a API está indisponível): a exportação do trace é tentada de forma síncrona em modo best-effort.
 
 ---
 
@@ -407,7 +424,7 @@ CMD uvicorn main:app --host 0.0.0.0 --port ${PORT} --app-dir src
 
 Blueprint do Render com variáveis de ambiente. Secrets (`sync: false`) devem ser configurados manualmente no dashboard:
 
-- `GOOGLE_API_KEY`, `DB_URL`, `LANGSMITH_API_KEY`
+- `GOOGLE_API_KEY`, `DB_URL`, `LANGSMITH_API_KEY`, `SUPABASE_PROJECT`, `SUPABASE_SECRET_KEY`
 - `SMTP_USER`, `SMTP_PASSWORD`, `HITL_REVIEWER_EMAIL`
 
 ### Keep-Alive (GitHub Actions)
@@ -439,4 +456,7 @@ jobs:
 | `LANGSMITH_API_KEY` | ❌ | Tracing via LangSmith |
 | `LANGCHAIN_TRACING_V2` | ❌ | Ativar tracing (`true`) |
 | `LANGCHAIN_PROJECT` | ❌ | Nome do projeto no LangSmith |
+| `SUPABASE_PROJECT` | ❌ | URL do projeto Supabase (para export de trace) |
+| `SUPABASE_SECRET_KEY` | ❌ | Chave service role do Supabase (para export de trace) |
+| `SUPABASE_TRACES_BUCKET` | ❌ | Nome do bucket Supabase para traces JSON (padrão `traces`) |
 | `API_BASE_URL` | ❌ | Override da URL Streamlit → API |

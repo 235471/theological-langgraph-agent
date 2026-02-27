@@ -33,10 +33,15 @@ alembic upgrade head
 - `0002_add_prompt_versions_jsonb`: adds `prompt_versions JSONB` to:
   - `analysis_runs`
   - `hitl_reviews`
+- `0003_add_graph_run_traces_table`: adds `graph_run_traces` for LangSmith trace export metadata.
 
 ## Startup behavior
 
-- Docker startup runs: `alembic upgrade head && uvicorn ...`
-- App startup also runs migrations via `run_migrations()`.
-- Optional fallback to legacy bootstrap can be enabled with:
-  - `DB_INIT_FALLBACK=true`
+- Docker startup runs migrations via:
+  - `alembic upgrade head && uvicorn ...`
+- App startup does not run migrations anymore.
+- For local (non-Docker) development, run migrations manually before starting the API:
+
+```bash
+alembic upgrade head
+```

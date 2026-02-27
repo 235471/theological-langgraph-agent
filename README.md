@@ -186,11 +186,17 @@ HITL_REVIEWER_EMAIL=reviewer@example.com
 LANGSMITH_API_KEY=lsv2_pt_xxxxx
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_PROJECT=TheologicalAgent
+
+# Optional — Trace export storage
+SUPABASE_PROJECT=https://your-project.supabase.co
+SUPABASE_SECRET_KEY=your_supabase_service_role_key
+SUPABASE_TRACES_BUCKET=traces
 ```
 
 ### Run
 
 ```bash
+alembic upgrade head
 python start_dev.py
 ```
 
@@ -208,7 +214,7 @@ The project includes a `Dockerfile` and `render.yaml` for one-click deploy:
 
 1. Import repo on [Render](https://render.com/)
 2. It detects `render.yaml` and creates the service
-3. Set secrets in the Render dashboard (`GOOGLE_API_KEY`, `DB_URL`, etc.)
+3. Set secrets in the Render dashboard (`GOOGLE_API_KEY`, `DB_URL`, `SUPABASE_PROJECT`, `SUPABASE_SECRET_KEY`, etc.)
 4. GitHub Actions keep-alive pings `/health` every 14 minutes
 
 ### Frontend — Streamlit Cloud

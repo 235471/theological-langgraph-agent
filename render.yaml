@@ -15,6 +15,12 @@ services:
         value: "true"
       - key: LANGCHAIN_PROJECT
         value: "TheologicalAgent-Prod"
+      - key: SUPABASE_PROJECT
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_TRACES_BUCKET
+        value: traces
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT

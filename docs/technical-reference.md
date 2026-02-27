@@ -287,7 +287,7 @@ async def approve_review(run_id: str, body: HITLApproveRequest):
 
 ## Database Schema
 
-Three tables in Supabase PostgreSQL, created idempotently on app startup:
+Four tables in Supabase PostgreSQL:
 
 ### `analysis_runs`
 | Column | Type | Description |
@@ -324,6 +324,23 @@ Three tables in Supabase PostgreSQL, created idempotently on app startup:
 | `metadata` | JSONB | Model versions, tokens, reasoning |
 | `created_at` | TIMESTAMPTZ | Review creation |
 | `reviewed_at` | TIMESTAMPTZ | Review completion |
+
+### `graph_run_traces`
+| Column | Type | Description |
+|--------|------|-------------|
+| `run_id` | VARCHAR(36) UNIQUE FK | Links to `analysis_runs.run_id` |
+| `langsmith_run_id` | VARCHAR(36) | LangSmith trace/run identifier |
+| `storage_path` | TEXT | Object path in Supabase Storage |
+| `size_bytes` | INTEGER | Stored trace file size |
+| `status` | VARCHAR(20) | uploaded / failed / skipped |
+| `error_message` | TEXT | Failure/skip reason when applicable |
+| `created_at` | TIMESTAMPTZ | Trace record creation |
+
+### Trace Export Runtime Behavior
+
+- `POST /analyze` (success or HITL pending): trace export is scheduled as a FastAPI background task to reduce response latency.
+- `POST /analyze` (HTTP 500 path): trace export is attempted synchronously before returning the error.
+- Streamlit direct-call fallback (when API is unreachable): trace export is attempted synchronously on a best-effort basis.
 
 ---
 
@@ -407,7 +424,7 @@ CMD uvicorn main:app --host 0.0.0.0 --port ${PORT} --app-dir src
 
 Render Blueprint with environment variables. Secrets (`sync: false`) must be set manually in the dashboard:
 
-- `GOOGLE_API_KEY`, `DB_URL`, `LANGSMITH_API_KEY`
+- `GOOGLE_API_KEY`, `DB_URL`, `LANGSMITH_API_KEY`, `SUPABASE_PROJECT`, `SUPABASE_SECRET_KEY`
 - `SMTP_USER`, `SMTP_PASSWORD`, `HITL_REVIEWER_EMAIL`
 
 ### Keep-Alive (GitHub Actions)
@@ -439,4 +456,7 @@ jobs:
 | `LANGSMITH_API_KEY` | ❌ | LangSmith tracing |
 | `LANGCHAIN_TRACING_V2` | ❌ | Enable tracing (`true`) |
 | `LANGCHAIN_PROJECT` | ❌ | LangSmith project name |
+| `SUPABASE_PROJECT` | ❌ | Supabase project URL (for trace export) |
+| `SUPABASE_SECRET_KEY` | ❌ | Supabase service role key (for trace export) |
+| `SUPABASE_TRACES_BUCKET` | ❌ | Supabase bucket name for JSON traces (`traces` default) |
 | `API_BASE_URL` | ❌ | Streamlit → API URL override |
