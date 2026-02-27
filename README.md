@@ -105,6 +105,26 @@ Every LLM call already returns `usage_metadata`. We extract it and propagate thr
 
 This gives full observability without any extra API calls or external services.
 
+### Full Trace Export (LangSmith → Supabase)
+
+For complete governance, auditability, debugging, and reproducibility, the system captures the entire execution trace (inputs, outputs, intermediate thoughts, and latencies) via LangSmith. Upon completion, this trace is exported asynchronously as a JSON file to a **Supabase Storage Bucket** and referenced securely in the `graph_run_traces` table.
+
+**Example Trace Record:**
+```json
+[
+  {
+    "id": 1,
+    "run_id": "ab1033f2-710b-49ca-b633-a73e67e6b786",
+    "langsmith_run_id": "84dca63c-daca-47ca-a926-50865d4639b2",
+    "storage_path": "traces/ab1033f2-710b-49ca-b633-a73e67e6b786.json",
+    "size_bytes": 604007,
+    "status": "uploaded",
+    "error_message": null,
+    "created_at": "2026-02-27 18:33:38.838614+00"
+  }
+]
+```
+
 ### Agent-in-an-Agent (ADK Grounding)
 
 The Lexical Agent leverages Google's **Agent Development Kit (ADK)** to perform web-grounded exegesis. Rather than splitting search and generation into multiple LLM calls, we implemented a **single-pass ADK architecture**:
@@ -249,6 +269,12 @@ Full output (3,500 words): [`examples/joao-8v31-34.md`](examples/joao-8v31-34.md
 
 ```
 theological-langgraph-agent/
+├── alembic/                    # Database baseline migrations
+├── docs/                       # Technical documentation
+│   ├── adk-integration.md      # ADK Lexical Grounding details
+│   ├── db-migrations.md        # Database evolution guide
+│   ├── technical-reference.md  # Full system architecture
+│   └── ...                     # Hub/Fallback architecture deep-dives
 ├── src/
 │   ├── app/
 │   │   ├── agent/
@@ -268,10 +294,13 @@ theological-langgraph-agent/
 │   │   │   ├── cache_service.py        # SHA-256 cache with atomic hits
 │   │   │   ├── audit_service.py        # Run persistence (success + failure)
 │   │   │   ├── hitl_service.py         # HITL CRUD operations
+│   │   │   ├── trace_service.py        # LangSmith trace export to Supabase
+│   │   │   ├── lexical_grounding_service.py # ADK web grounding exegesis
 │   │   │   └── email_service.py        # SMTP email notifications
 │   │   ├── database/
 │   │   │   ├── connection.py           # PostgreSQL pool (Supabase)
-│   │   │   └── init_db.py             # Idempotent table bootstrap
+│   │   │   ├── init_db.py             # Idempotent table bootstrap
+│   │   │   └── migrations.py          # Managed Alembic migrations logic
 │   │   ├── utils/
 │   │   │   ├── hub_fallback.py        # LangSmith hub execution w/ offline fallback mechanism
 │   │   │   ├── fallbacks/
@@ -279,17 +308,20 @@ theological-langgraph-agent/
 │   │   │   └── logger.py              # JSON structured logging
 │   │   └── schemas.py                 # Pydantic request/response + HITL schemas
 │   └── main.py                        # FastAPI app with lifespan events
-├── sync_prompts.py                    # Script to download LangSmith prompts to local JSON
+├── resources/                          # Static assets
+│   └── NAA.json                        # Local Bible translation (NAA)
+├── samples/                          # Audit & trace log examples (JSON/YAML)
 ├── streamlit/
 │   ├── streamlit_app.py               # Frontend with governance badges
 │   ├── api_client.py                  # HTTP client with local fallback
-│   ├── bible_books.py                 # Book metadata
-│   └── style.css                      # Custom styling
+│   └── ...
+├── alembic.ini                         # Alembic configuration
+├── start_dev.py                        # Unified dev server launcher (API + UI)
+├── sync_prompts.py                    # Script to download LangSmith prompts to local JSON
 ├── Dockerfile                          # API-only Docker image
 ├── render.yaml                         # Render IaC blueprint
 ├── requirements.txt                    # Full dependencies
-├── requirements-api.txt                # API-only dependencies (Docker)
-└── .github/workflows/keep-alive.yml   # Keep-alive cron (14min)
+└── requirements-api.txt                # API-only dependencies (Docker)
 ```
 
 ---
