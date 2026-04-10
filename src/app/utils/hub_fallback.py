@@ -56,6 +56,7 @@ def execute_with_fallback(
         Tuple (response, raw_aimessage, model_name_used, prompt_commit_hash)
     """
     # ─── PRIMARY: LangSmith Hub ────────────────────────────────────────────────
+    _hub_err_msg: str | None = None  # persists hub error across except scope
     try:
         chain = _get_ls_client().pull_prompt(
             prompt_name, include_model=True, secrets_from_env=True
@@ -95,12 +96,15 @@ def execute_with_fallback(
             return result, result, model_name_used, prompt_commit_hash
 
     except Exception as hub_err:
+        # NOTE: Python deletes the `as hub_err` binding when the except block exits.
+        # We must save the message here before leaving the except scope.
+        _hub_err_msg = str(hub_err)
         logger.warning(
             f"LangSmith Hub unavailable for '{prompt_name}'. Switching to local JSON fallback.",
             extra={
                 "event": "hub_fallback_triggered",
                 "prompt": prompt_name,
-                "error": str(hub_err),
+                "error": _hub_err_msg,
             },
         )
 
@@ -160,5 +164,5 @@ def execute_with_fallback(
         logger.error(f"Fallback also failed for '{prompt_name}': {fallback_err}")
         raise RuntimeError(
             f"Total failure for '{prompt_name}'. "
-            f"Hub error: {hub_err} | Fallback error: {fallback_err}"
+            f"Hub error: {_hub_err_msg} | Fallback error: {fallback_err}"
         )
