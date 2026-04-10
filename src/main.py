@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+
 # Load environment variables for LangSmith and API Keys
 load_dotenv()
 
@@ -17,7 +18,6 @@ from app.utils.logger import setup_logging, get_logger
 from app.database.connection import check_db_health, close_pool
 from app.controller.bible_controller import router as bible_router
 from app.controller.analyze_controller import router as analyze_router
-from app.controller.debug_controller import router as debug_router
 from app.controller.hitl_controller import router as hitl_router
 
 # Initialize structured logging
@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # --- Shutdown ---
-    logger.info("Shutting down — closing DB pool", extra={"event": "shutdown"})
+    logger.info("Shutting down \u2014 closing DB pool", extra={"event": "shutdown"})
     close_pool()
 
 
@@ -64,7 +64,6 @@ app.add_middleware(
 # Include routers
 app.include_router(bible_router)
 app.include_router(analyze_router)
-app.include_router(debug_router)
 app.include_router(hitl_router)
 
 

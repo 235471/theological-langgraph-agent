@@ -59,7 +59,3 @@ def get_specific_verses(
     return [verse_dict.get(num, "") for num in verse_numbers if num in verse_dict]
 
 
-def get_book_chapter_count(abbrev: str) -> int:
-    """Get the total number of chapters in a book."""
-    book = get_book_by_abbrev(abbrev)
-    return len(book.get("chapters", [])) if book else 0

@@ -127,7 +127,7 @@ def init_database() -> bool:
 
 # Allow running directly: python -m app.database.init_db
 if __name__ == "__main__":
-    import os
+
     from dotenv import load_dotenv
 
     load_dotenv()

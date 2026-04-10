@@ -19,7 +19,6 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlparse
 
-from app.client.client import ModelTier
 from app.service.bible_service import get_specific_verses
 from app.utils.logger import get_logger
 
@@ -625,7 +624,7 @@ def run_lexical_grounding(
             },
         )
 
-        model_to_use = model_override or ModelTier.FLASH
+        model_to_use = model_override or "gemini-3.1-flash-lite-preview"
 
         grounded_text, sources, search_calls, tokens_consumed = _run_coro_sync(
             _run_adk_grounding_async(

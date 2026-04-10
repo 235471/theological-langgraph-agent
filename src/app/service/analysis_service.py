@@ -564,17 +564,3 @@ def stream_analysis(input_data: AnalysisInput) -> Generator[dict, None, None]:
     }
 
 
-def format_verse_reference(book: str, chapter: int, verses: List[int]) -> str:
-    """
-    Format a verse reference string (e.g., "Sl 23:1-3" or "Sl 23:1,3,5").
-    """
-    if not verses:
-        return f"{book} {chapter}"
-
-    verses_sorted = sorted(verses)
-    if verses_sorted == list(range(verses_sorted[0], verses_sorted[-1] + 1)):
-        if len(verses_sorted) == 1:
-            return f"{book} {chapter}:{verses_sorted[0]}"
-        return f"{book} {chapter}:{verses_sorted[0]}-{verses_sorted[-1]}"
-    else:
-        return f"{book} {chapter}:{','.join(map(str, verses_sorted))}"

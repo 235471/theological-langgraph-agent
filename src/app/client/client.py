@@ -11,24 +11,8 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-class ModelTier:
-    """3 primary models — one per load tier for maximum distribution."""
-
-    LITE = "gemini-3.1-flash-lite-preview"  # 10 RPM, 250K TPM, 20 RPD — Light tasks
-    FLASH = "gemini-3.1-flash-lite-preview"  # 5 RPM, 250K TPM, 20 RPD — Medium tasks
-    TOP = "gemini-3-flash-preview"  # 5 RPM, 250K TPM, 20 RPD — Critical tasks
-
-
-# Fallback chain: if primary model fails (429 / deprecated), try the next one
-MODEL_FALLBACKS = {
-    "gemini-3-flash-preview": "gemini-3.1-flash-lite-preview",
-    "gemini-3.1-flash-lite-preview": "gemini-2.5-flash-lite",
-    "gemini-2.5-flash": "gemini-2.5-flash-lite",  # safe-guard for legacy calls
-}
-
-
 def get_llm_client(
-    model: str = ModelTier.FLASH,
+    model: str = "gemini-3.1-flash-lite-preview",
     temperature: float = 0.3,
     max_output_tokens: int | None = None,
 ) -> ChatGoogleGenerativeAI:
@@ -36,7 +20,7 @@ def get_llm_client(
     Get a configured LLM client instance.
 
     Args:
-        model: Model name from ModelTier constants
+        model: Model name string (e.g. "gemini-3.1-flash-lite-preview")
         temperature: Sampling temperature (lower = more deterministic)
         max_output_tokens: Optional cap on generated tokens (prevents hallucination loops)
 
@@ -59,68 +43,3 @@ def get_llm_client(
 
     return ChatGoogleGenerativeAI(**kwargs)
 
-
-def get_llm_client_with_fallback(
-    model: str, temperature: float = 0.3
-) -> tuple[ChatGoogleGenerativeAI, str]:
-    """
-    Get an LLM client, with automatic fallback on failure.
-
-    Returns:
-        Tuple of (client, actual_model_name) — model_name may differ if fallback was used.
-    """
-    current_model = model
-
-    while current_model:
-        try:
-            client = get_llm_client(current_model, temperature)
-            return client, current_model
-        except Exception as e:
-            fallback = MODEL_FALLBACKS.get(current_model)
-            if fallback:
-                logger.warning(
-                    f"Model {current_model} failed, falling back to {fallback}: {e}",
-                    extra={
-                        "event": "model_fallback",
-                        "model": current_model,
-                        "fallback": fallback,
-                    },
-                )
-                current_model = fallback
-            else:
-                raise
-
-    raise ValueError(f"All models exhausted starting from {model}")
-
-
-# --- Pre-configured clients for each node ---
-
-
-def get_panorama_model():
-    """Light optional analysis — uses FLASH (5 RPM)."""
-    return get_llm_client(ModelTier.FLASH, temperature=0.2)
-
-
-def get_lexical_model():
-    """Quality exegesis — uses FLASH (5 RPM)."""
-    return get_llm_client(ModelTier.FLASH, temperature=0.1)
-
-
-def get_historical_model():
-    """Historical-theological mapping — uses FLASH (5 RPM)."""
-    return get_llm_client(ModelTier.FLASH, temperature=0.2)
-
-
-def get_intertextual_model():
-    """Always runs, needs throughput — uses LITE (10 RPM)."""
-    return get_llm_client(ModelTier.LITE, temperature=0.2)
-
-
-def get_validator_model():
-    """Most critical node — uses TOP (gemini-3-flash-preview, 5 RPM)."""
-    return get_llm_client(ModelTier.TOP, temperature=0.1, max_output_tokens=10000)
-
-
-def get_synthesizer_model():
-    """Final output quality — uses TOP (gemini-3-flash-preview, 5 RPM)."""
-    return get_llm_client(ModelTier.TOP, temperature=0.4, max_output_tokens=10000)

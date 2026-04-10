@@ -6,7 +6,7 @@ for governance, debugging, and observability.
 """
 
 import json
-from typing import Any, Optional
+from typing import Optional
 
 from app.database.connection import get_connection
 from app.utils.logger import get_logger

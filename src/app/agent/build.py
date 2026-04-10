@@ -15,7 +15,6 @@ from langgraph.types import Send
 
 from app.agent.agentState import TheologicalState
 from app.agent.model import AnalysisOutput, ValidatorOutput
-from app.client.client import ModelTier
 from app.utils.hub_fallback import execute_with_fallback
 from app.service.hitl_service import save_pending_review
 from app.service.lexical_grounding_service import run_lexical_grounding
@@ -127,7 +126,7 @@ def _build_node_result(
     Args:
         state: Current graph state
         node_name: Node identifier (e.g. 'panorama_agent')
-        model_name: Model tier used (e.g. ModelTier.FLASH)
+        model_name: Model name used for execution
         response: Parsed structured response (has .content)
         start_time: time.time() captured at node start
         output_field: State key to write content to (e.g. 'panorama_content')
@@ -358,7 +357,7 @@ def lexical_node(state: TheologicalState):
         )
         raw = None
         # Try to pull the model name returned by grounding or default to FLASH
-        adk_model_name = getattr(grounding, 'model_name', None) or ModelTier.FLASH
+        adk_model_name = getattr(grounding, 'model_name', None) or "gemini-3.1-flash-lite-preview"
         model_used = f"{adk_model_name} [adk-single-pass]"
         prompt_commit_hash = grounding.prompt_commit_hash
     else:

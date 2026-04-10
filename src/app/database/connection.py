@@ -6,7 +6,7 @@ Provides a connection pool for cache, audit, and HITL persistence.
 """
 
 import os
-import psycopg
+
 from psycopg_pool import ConnectionPool
 from app.utils.logger import get_logger
 
