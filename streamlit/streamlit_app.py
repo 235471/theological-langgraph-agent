@@ -36,11 +36,13 @@ with open("streamlit/style.css") as f:
 if "chapter_data" not in st.session_state:
     st.session_state.chapter_data = []
 if "analysis_result" not in st.session_state:
-    st.session_state.analysis_result = None  # Now stores full dict
+    st.session_state.analysis_result = None
 if "is_analyzing" not in st.session_state:
     st.session_state.is_analyzing = False
 if "selected_verses_ids" not in st.session_state:
     st.session_state.selected_verses_ids = []
+if "do_analysis" not in st.session_state:
+    st.session_state.do_analysis = False
 
 
 # --- Helper Functions ---
@@ -54,14 +56,11 @@ def fetch_chapter_data():
         st.session_state.selected_verses_ids = []
 
 
-def run_analysis():
-    """Triggers the agent analysis."""
-    st.session_state.is_analyzing = True
-
+def _build_payload():
+    """Build the analysis payload from current widget state."""
     book = st.session_state.selected_book_abbrev
     chapter = st.session_state.selected_chapter
-    
-    # Re-evaluate selected verses to ensure we have the latest widget states
+
     verses = []
     if st.session_state.get("select_all_verses"):
         verses = [v["number"] for v in st.session_state.get("chapter_data", [])]
@@ -69,7 +68,6 @@ def run_analysis():
         for v in st.session_state.get("chapter_data", []):
             if st.session_state.get(f"v_{v['number']}"):
                 verses.append(v["number"])
-    st.session_state.selected_verses_ids = verses
 
     mode = st.session_state.mode
     modules = []
@@ -83,17 +81,29 @@ def run_analysis():
     else:
         modules = ["panorama", "exegese", "teologia"]
 
-    payload = {
+    return {
         "book": book,
         "chapter": chapter,
         "verses": verses,
         "selected_modules": modules,
     }
 
-    # Returns dict with governance metadata
-    result = api_client.analyze(payload)
-    st.session_state.analysis_result = result
-    st.session_state.is_analyzing = False
+
+# ─── Labels for the streaming progress display ───────────────────────────────
+_STAGE_HEADINGS = {
+    1: "🔍 Estágio 1 — Análise Multi-Agente",
+    2: "⚖️ Estágio 2 — Validação Teológica",
+    3: "📝 Estágio 3 — Síntese do Estudo",
+}
+_NODE_LABELS = {
+    "panorama_agent":        "Panorama Bíblico",
+    "lexical_agent":         "Exegese Lexical (ADK)",
+    "historical_agent":      "Contexto Histórico",
+    "intertextual_agent":    "Análise Intertextual",
+    "theological_validator": "Validador Teológico",
+    "hitl_pending":          "Revisão Humana Requerida",
+    "synthesizer":           "Sintetizando estudo...",
+}
 
 
 # --- TOP CONTROL BAR ---
@@ -130,14 +140,21 @@ with st.container():
     if st.session_state.get("select_all_verses"):
         has_selection = True
     elif st.session_state.get("chapter_data"):
-        has_selection = any(st.session_state.get(f"v_{v['number']}") for v in st.session_state.chapter_data)
+        has_selection = any(
+            st.session_state.get(f"v_{v['number']}")
+            for v in st.session_state.chapter_data
+        )
 
-    analyze_clicked = col4.button(
+    # Button sets a flag; analysis runs in the main render path below so that
+    # st.status() can update live (on_click callbacks buffer all UI writes and
+    # only render them after the callback returns — incompatible with streaming).
+    if col4.button(
         "Analyze ✨",
         type="primary",
-        on_click=run_analysis,
         disabled=st.session_state.is_analyzing or not has_selection,
-    )
+    ):
+        st.session_state.do_analysis = True
+        st.session_state.analysis_result = None  # clear previous result
 
 st.divider()
 
@@ -190,17 +207,71 @@ with left_panel:
     else:
         st.spinner("Carregando versículos...")
 
-# --- RIGHT PANEL: Analysis Results ---
+# --- RIGHT PANEL: Analysis / Streaming Progress / Results ---
 with right_panel:
-    if st.session_state.is_analyzing:
-        st.markdown(
-            """
-            <div style="display: flex; justify-content: center; align-items: center; height: 300px;">
-                <h3>🤖 O Agente está analisando as Escrituras...</h3>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+
+    # ── Streaming Analysis (main render path — required for live st.status) ──
+    if st.session_state.get("do_analysis") and not st.session_state.is_analyzing:
+        st.session_state.do_analysis = False
+        st.session_state.is_analyzing = True
+
+        payload = _build_payload()
+        result = None
+        seen_stages: set = set()
+
+        with st.status("📖 Analisando Escrituras...", expanded=True) as status:
+            start_ts = time.time()
+
+            for event in api_client.stream_analyze(payload):
+                etype = event.get("event")
+
+                if etype == "cache_hit":
+                    status.update(label="⚡ Resultado do Cache!", state="complete")
+                    result = event
+                    break
+
+                elif etype == "stage_start":
+                    stage = event.get("stage", 1)
+                    if stage not in seen_stages:
+                        seen_stages.add(stage)
+                        st.write(f"**{_STAGE_HEADINGS.get(stage, '')}**")
+
+                elif etype == "node_complete":
+                    node = event.get("node")
+                    stage = event.get("stage", 1)
+
+                    # Emit stage heading when we see the first node of a new stage
+                    # (covers the rare case the backend emits node before stage_start)
+                    if stage not in seen_stages:
+                        seen_stages.add(stage)
+                        st.write(f"**{_STAGE_HEADINGS.get(stage, '')}**")
+
+                    # Skip internal sync node (it's invisible to the user)
+                    if node not in ("join",):
+                        elapsed = int(time.time() - start_ts)
+                        label = _NODE_LABELS.get(node, node)
+                        st.write(f"  ✅ {label} _({elapsed}s)_")
+
+                elif etype == "complete":
+                    elapsed = int(time.time() - start_ts)
+                    status.update(
+                        label=f"✅ Análise concluída! ({elapsed}s)",
+                        state="complete",
+                    )
+                    result = event
+
+                elif etype == "error":
+                    status.update(label="❌ Erro na análise", state="error")
+                    result = {
+                        "final_analysis": f"❌ Erro: {event.get('error', 'Desconhecido')}",
+                        "from_cache": False,
+                    }
+
+        st.session_state.analysis_result = result
+        st.session_state.is_analyzing = False
+        st.rerun()  # Re-render to display the result in the results panel below
+
+    # ─── Results Panel ────────────────────────────────────────────────────────
     elif st.session_state.analysis_result:
         result = st.session_state.analysis_result
         final_text = (
