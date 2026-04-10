@@ -60,7 +60,16 @@ def run_analysis():
 
     book = st.session_state.selected_book_abbrev
     chapter = st.session_state.selected_chapter
-    verses = st.session_state.selected_verses_ids
+    
+    # Re-evaluate selected verses to ensure we have the latest widget states
+    verses = []
+    if st.session_state.get("select_all_verses"):
+        verses = [v["number"] for v in st.session_state.get("chapter_data", [])]
+    else:
+        for v in st.session_state.get("chapter_data", []):
+            if st.session_state.get(f"v_{v['number']}"):
+                verses.append(v["number"])
+    st.session_state.selected_verses_ids = verses
 
     mode = st.session_state.mode
     modules = []
@@ -116,12 +125,18 @@ with st.container():
     else:
         col3.info("Todos os módulos serão executados.")
 
+    # Determine if any verses are currently selected based on widget states
+    has_selection = False
+    if st.session_state.get("select_all_verses"):
+        has_selection = True
+    elif st.session_state.get("chapter_data"):
+        has_selection = any(st.session_state.get(f"v_{v['number']}") for v in st.session_state.chapter_data)
+
     analyze_clicked = col4.button(
         "Analyze ✨",
         type="primary",
         on_click=run_analysis,
-        disabled=st.session_state.is_analyzing
-        or not st.session_state.selected_verses_ids,
+        disabled=st.session_state.is_analyzing or not has_selection,
     )
 
 st.divider()
@@ -150,7 +165,8 @@ with left_panel:
     st.write("Selecione os versículos:")
 
     if st.session_state.chapter_data:
-        if st.checkbox("Selecionar Todos"):
+        select_all = st.checkbox("Selecionar Todos", key="select_all_verses")
+        if select_all:
             st.session_state.selected_verses_ids = [
                 v["number"] for v in st.session_state.chapter_data
             ]
@@ -226,11 +242,7 @@ with right_panel:
 
         # --- Main Content ---
         if final_text:
-            combined_html = f"""
-            <div class="agent-result-container">
-                {final_text}
-            </div>
-            """
+            combined_html = f'<div class="agent-result-container">\n\n{final_text}\n\n</div>'
             st.markdown(combined_html, unsafe_allow_html=True)
 
             with st.expander("📋 Copiar Texto (Formato Markdown)"):
