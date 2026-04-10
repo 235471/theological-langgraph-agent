@@ -12,10 +12,10 @@
             }
         ],
         "model_config": {
-            "model_name": "gemini-2.5-flash-lite",
+            "model_name": "gemini-3.1-flash-lite-preview",
             "temperature": 0.2
         },
-        "prompt_commit_hash": "be9b095fcc334b9eed59566a8f556c263b1b99bc7ebd2e669ee7a2dda8b5ff6f"
+        "prompt_commit_hash": "dad03f32dd3589bc45670c64264f57fe4082f47b21ce268f0531f984dcf57d03"
     },
     "theological-agent-lexical-prompt": {
         "name": "theological-agent-lexical-prompt",
@@ -30,10 +30,10 @@
             }
         ],
         "model_config": {
-            "model_name": "gemini-2.5-flash",
+            "model_name": "gemini-3.1-flash-lite-preview",
             "temperature": 0.1
         },
-        "prompt_commit_hash": "171edfaa6c61d9b963ed2dd6999053f844394aeafc81bfe7e42b827f7c31cfed"
+        "prompt_commit_hash": "2987643a395d3602749eed9a1a493ac8049b0c900c4d98da598223ab26d716ab"
     },
     "theological-agent-lexical-prompt-legacy": {
         "name": "theological-agent-lexical-prompt-legacy",
@@ -48,10 +48,10 @@
             }
         ],
         "model_config": {
-            "model_name": "gemini-2.5-flash",
+            "model_name": "gemini-3.1-flash-lite-preview",
             "temperature": 0.1
         },
-        "prompt_commit_hash": "ac854dea0050514d195930b14188108f81926b2314e3d9b970c6de0f5df10351"
+        "prompt_commit_hash": "cc8c698f5a90b66cac0417947b56980145af9bf3228fb8aeb531c396dc8c67ec"
     },
     "theological-agent-historical-prompt": {
         "name": "theological-agent-historical-prompt",
@@ -66,10 +66,10 @@
             }
         ],
         "model_config": {
-            "model_name": "gemini-2.5-flash",
+            "model_name": "gemini-3.1-flash-lite-preview",
             "temperature": 0.2
         },
-        "prompt_commit_hash": "54ea60e318b4b06a97558836862d4c9ecd9ddabcfcb5a8c5382a1bb505daf9c2"
+        "prompt_commit_hash": "12cbcf418ae271e0cf7794e072f6b7a78e9539add880417eea39711671c5174d"
     },
     "theological-agent-intertextual-prompt": {
         "name": "theological-agent-intertextual-prompt",
@@ -84,10 +84,10 @@
             }
         ],
         "model_config": {
-            "model_name": "gemini-2.5-flash-lite",
+            "model_name": "gemini-3.1-flash-lite-preview",
             "temperature": 0.2
         },
-        "prompt_commit_hash": "a81fe510c1363230e8398063ca304232e55fd4c58e4054aabe6ed0d550ab6770"
+        "prompt_commit_hash": "e258b1ea2a1904db5a81dee6e5e42a2f3e13d3988f352181af48fe0b64835b1a"
     },
     "theological-agent-validator-prompt": {
         "name": "theological-agent-validator-prompt",

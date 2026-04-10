@@ -14,16 +14,16 @@ logger = get_logger(__name__)
 class ModelTier:
     """3 primary models — one per load tier for maximum distribution."""
 
-    LITE = "gemini-2.5-flash-lite"  # 10 RPM, 250K TPM, 20 RPD — Light tasks
-    FLASH = "gemini-2.5-flash"  # 5 RPM, 250K TPM, 20 RPD — Medium tasks
+    LITE = "gemini-3.1-flash-lite-preview"  # 10 RPM, 250K TPM, 20 RPD — Light tasks
+    FLASH = "gemini-3.1-flash-lite-preview"  # 5 RPM, 250K TPM, 20 RPD — Medium tasks
     TOP = "gemini-3-flash-preview"  # 5 RPM, 250K TPM, 20 RPD — Critical tasks
 
 
 # Fallback chain: if primary model fails (429 / deprecated), try the next one
 MODEL_FALLBACKS = {
-    "gemini-3-flash-preview": "gemini-2.5-flash",
-    "gemini-2.5-flash": "gemini-2.5-flash-lite",
-    "gemini-2.5-flash-lite": "gemini-2.0-flash-lite",  # last resort
+    "gemini-3-flash-preview": "gemini-3.1-flash-lite-preview",
+    "gemini-3.1-flash-lite-preview": "gemini-2.5-flash-lite",
+    "gemini-2.5-flash": "gemini-2.5-flash-lite",  # safe-guard for legacy calls
 }
 
 

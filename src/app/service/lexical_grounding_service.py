@@ -59,6 +59,7 @@ class LexicalGroundingResult:
     tokens_consumed: dict = field(default_factory=lambda: {"input": 0, "output": 0})
     prompt_commit_hash: str | None = None
     prompt_source: str = "unknown"
+    model_name: str | None = None
 
 
 def _get_ls_client() -> Client:
@@ -117,6 +118,11 @@ def _load_prompt_from_hub() -> dict[str, str | None]:
         if isinstance(prompt_metadata, dict)
         else None
     )
+    
+    # Try to extract model context
+    base_model = getattr(chain, "last", getattr(chain, "bound", chain))
+    model_name = getattr(base_model, "model_name", getattr(base_model, "model", None))
+    
     raw_messages = getattr(prompt_template, "messages", [])
     system_template, human_template = _extract_templates(raw_messages)
     if not system_template and not human_template:
@@ -127,6 +133,7 @@ def _load_prompt_from_hub() -> dict[str, str | None]:
         "human_template": human_template,
         "prompt_commit_hash": prompt_commit_hash,
         "prompt_source": "langsmith_hub",
+        "model_name": model_name,
     }
 
 
@@ -138,11 +145,15 @@ def _load_prompt_from_local_fallback() -> dict[str, str | None]:
     if not system_template and not human_template:
         raise ValueError(f"{PROMPT_NAME} not found in local fallback file")
 
+    model_config = fallback_data.get("model_config", {})
+    model_name = model_config.get("model_name")
+
     return {
         "system_template": system_template,
         "human_template": human_template,
         "prompt_commit_hash": fallback_data.get("prompt_commit_hash"),
         "prompt_source": "local_fallback_json",
+        "model_name": model_name,
     }
 
 
@@ -366,6 +377,7 @@ def _build_adk_prompt(
             if prompt_config.get("prompt_commit_hash")
             else None
         ),
+        prompt_config.get("model_name"),
     )
 
 
@@ -591,7 +603,7 @@ def run_lexical_grounding(
                 f"Unable to load verse text from NAA for {book} {chapter}:{verse_numbers}."
             )
 
-        instruction, user_query, prompt_source, prompt_commit_hash = _build_adk_prompt(
+        instruction, user_query, prompt_source, prompt_commit_hash, model_override = _build_adk_prompt(
             book=book,
             chapter=chapter,
             verse_numbers=verse_numbers,
@@ -609,11 +621,13 @@ def run_lexical_grounding(
             },
         )
 
+        model_to_use = model_override or ModelTier.FLASH
+
         grounded_text, sources, search_calls, tokens_consumed = _run_coro_sync(
             _run_adk_grounding_async(
                 instruction=instruction,
                 user_query=user_query,
-                model_name=ModelTier.FLASH,
+                model_name=model_to_use,
                 timeout_seconds=timeout_seconds,
                 afc_max_remote_calls=afc_max_remote_calls,
             ),
@@ -657,6 +671,7 @@ def run_lexical_grounding(
             tokens_consumed=tokens_consumed,
             prompt_commit_hash=prompt_commit_hash,
             prompt_source=prompt_source,
+            model_name=model_to_use,
         )
 
     except Exception as exc:

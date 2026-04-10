@@ -32,14 +32,30 @@ NEUTRAL_GROUNDED_CONTEXT = (
 # --- Helpers ---
 
 
-def sanitize_llm_output(content: str) -> str:
+def sanitize_llm_output(content: str | list) -> str:
     """
     Sanitizes LLM output to ensure proper markdown formatting.
 
     Fixes:
+    - Lists of content blocks (used by newer Gemini/LangChain models)
     - Escaped newlines (\\n) -> actual newlines
     - Accidental JSON wrapper structures
     """
+    if isinstance(content, list):
+        # Extract text from list of parts/blocks
+        text_parts = []
+        for part in content:
+            if isinstance(part, str):
+                text_parts.append(part)
+            elif isinstance(part, dict) and "text" in part:
+                text_parts.append(part["text"])
+            else:
+                # Fallback for unexpected part types
+                text_parts.append(str(part))
+        content = "".join(text_parts)
+    elif not isinstance(content, str):
+        content = str(content)
+
     if "\\n" in content:
         content = content.replace("\\n", "\n")
 
@@ -341,7 +357,9 @@ def lexical_node(state: TheologicalState):
             },
         )
         raw = None
-        model_used = f"{ModelTier.FLASH} [adk-single-pass]"
+        # Try to pull the model name returned by grounding or default to FLASH
+        adk_model_name = getattr(grounding, 'model_name', None) or ModelTier.FLASH
+        model_used = f"{adk_model_name} [adk-single-pass]"
         prompt_commit_hash = grounding.prompt_commit_hash
     else:
         try:
