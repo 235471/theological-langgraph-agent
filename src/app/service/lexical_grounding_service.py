@@ -120,8 +120,12 @@ def _load_prompt_from_hub() -> dict[str, str | None]:
     )
     
     # Try to extract model context
-    base_model = getattr(chain, "last", getattr(chain, "bound", chain))
-    model_name = getattr(base_model, "model_name", getattr(base_model, "model", None))
+    model_node = getattr(chain, "last", chain)
+    bound_model = getattr(model_node, "bound", model_node)
+    model_name_raw = getattr(
+        bound_model, "model", getattr(bound_model, "model_name", None)
+    )
+    model_name = model_name_raw.strip() if isinstance(model_name_raw, str) else None
     
     raw_messages = getattr(prompt_template, "messages", [])
     system_template, human_template = _extract_templates(raw_messages)

@@ -30,10 +30,10 @@
             }
         ],
         "model_config": {
-            "model_name": "gemini-3.1-flash-lite-preview",
+            "model_name": "gemini-2.5-flash-lite",
             "temperature": 0.1
         },
-        "prompt_commit_hash": "2987643a395d3602749eed9a1a493ac8049b0c900c4d98da598223ab26d716ab"
+        "prompt_commit_hash": "b43154ccd3ca452eb429bf3ef18ef03ce3ca9fe5aa5109e2723d30eccec729d7"
     },
     "theological-agent-lexical-prompt-legacy": {
         "name": "theological-agent-lexical-prompt-legacy",
