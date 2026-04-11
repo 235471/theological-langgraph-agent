@@ -1,73 +1,62 @@
 # LangSmith Prompt Hub Fallback Architecture
 
-## 1. The Sync Script (Offline/Cron Job)
-A dedicated script `sync_prompts.py` runs periodically (or manually) to fetch the latest production prompts from LangSmith.
-It saves the raw JSON structure of the prompt templates to `src/app/utils/prompts_fallback.json`.
+This project uses a resilient fallback strategy so analysis can continue even when LangSmith is unavailable.
 
-## 2. The Application Flow (`build.py`)
-Inside each agent node, we implement a robust try/except block.
+## 1. Runtime Strategy
 
-### Step 2a: The Primary Route (Online Hub)
-The application attempts to connect to LangSmith to fetch the prompt dynamically.
-```python
-from langchain import hub
+The fallback flow is centralized in `src/app/utils/hub_fallback.py` via:
 
-try:
-    chain = hub.pull("theological-agent-panorama-prompt", include_model=True, secrets_from_env=True)
-    # The chain is a RunnableSequence (Prompt + Model) configured by the UI
-    response = chain.invoke(...)
+- `execute_with_fallback(prompt_name, format_vars, structured_schema=None, max_tokens=None)`
+
+Execution order:
+
+1. **Primary path (LangSmith Hub):**
+   - Pull prompt + model with `Client().pull_prompt(..., include_model=True, secrets_from_env=True)`.
+   - Execute with template variables.
+   - Return parsed/structured output plus model and prompt commit hash metadata.
+2. **Fallback path (Local JSON):**
+   - Load prompt replica from `src/app/utils/fallbacks/prompts_fallback.json`.
+   - Rebuild messages and model configuration from JSON.
+   - Execute locally using `GOOGLE_API_KEY` from environment.
+
+## 2. Why This Design Works
+
+- **No single point of failure:** prompt execution works even when Hub calls fail.
+- **Audit continuity:** prompt commit hash and model used are still propagated for governance.
+- **Operational simplicity:** one utility handles both normal and degraded modes.
+
+## 3. Local Replica Synchronization
+
+The local fallback file is maintained by:
+
+```bash
+python sync_prompts.py
 ```
 
-### Step 2b: The Fallback Route (Offline JSON)
-If the LangSmith API is down, or times out, the `except` block catches the error and falls back to the local JSON file.
+The script pulls all configured prompts from LangSmith and updates:
 
-We need a helper function to read the JSON and reconstruct a LangChain `ChatPromptTemplate`:
+- `src/app/utils/fallbacks/prompts_fallback.json`
 
-```python
-import json
-from langchain_core.prompts import ChatPromptTemplate
-from app.client.client import get_panorama_model
+## 4. Fallback JSON Shape
 
-def load_fallback_prompt(prompt_name: str) -> ChatPromptTemplate:
-    with open("src/app/utils/prompts_fallback.json", "r") as f:
-        data = json.load(f)
-        
-    prompt_data = data.get(prompt_name)
-    if not prompt_data:
-        raise ValueError(f"Prompt {prompt_name} not found in fallback JSON.")
-    
-    # In Langchain, the prompt_dict usually holds a list of messages under 'messages'
-    # For a conversational prompt, we can often reconstruct it from the raw dictionaries
-    # However, parsing the raw LangSmith dict back into a LangChain object can be tricky if the format changes.
-    
-    # A safer approach is to extract the content strings from the JSON and build a simple SystemMessage/HumanMessage pair manually,
-    # OR we use langchain.prompts.load.load_prompt if we save the file using the official LangChain serialization (json/yaml).
+```json
+{
+  "theological-agent-panorama-prompt": {
+    "name": "theological-agent-panorama-prompt",
+    "messages": [
+      {"type": "system", "template": "..."},
+      {"type": "human", "template": "..."}
+    ],
+    "model_config": {
+      "model_name": "gemini-3.1-flash-lite-preview",
+      "temperature": 0.2
+    },
+    "prompt_commit_hash": "a7b2c3d..."
+  }
+}
 ```
 
-## 3. Recommended Approach for Serialization
-Instead of manually dumping `prompt.dict()`, LangChain provides built-in tools for saving and loading prompts cleanly.
+## 5. Notes
 
-**In `sync_prompts.py`:**
-We should use LangChain's built-in `prompt.save()` method to save as `.yaml` or `.json`, which preserves the exact structure needed to reconstruct the prompt object later.
-
-```python
-# sync_prompts.py
-from langchain import hub
-
-prompt = hub.pull("theological-agent-panorama-prompt") # Without include_model
-prompt.save("src/app/utils/fallbacks/panorama-prompt.yaml")
-```
-
-**In `build.py`:**
-```python
-# build.py
-from langchain.prompts import load_prompt
-
-# Inside the except block:
-prompt_template = load_prompt("src/app/utils/fallbacks/panorama-prompt.yaml")
-model = get_panorama_model()
-chain = prompt_template | model
-response = chain.invoke(...)
-```
-
-**Conclusion:** Using LangChain's native `.save()` and `load_prompt()` is significantly safer and cleaner than writing custom JSON parsers. It cleanly separates the prompt text from the model execution, allowing us to still use our robust `client.py` fallback logic when LangSmith is offline.
+- The fallback path performs safe manual placeholder replacement to avoid template-format issues with markdown content containing braces.
+- If both Hub and local fallback fail, the utility raises a combined error with both failure causes.

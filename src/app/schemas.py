@@ -59,7 +59,7 @@ class AnalyzeRequest(BaseModel):
     @classmethod
     def validate_modules(cls, v: List[str]) -> List[str]:
         """Validate against whitelist and deduplicate."""
-        valid_modules = {"panorama", "exegese", "teologia"}
+        valid_modules = {"panorama", "exegese", "historical"}
         sanitized = []
         for module in v:
             module = module.strip().lower()

@@ -12,15 +12,28 @@ Deep-dive nos detalhes de implementação do Theological LangGraph Agent. Para a
 
 ## Índice
 
-- [Implementação LangGraph](#implementação-langgraph)
-- [Estratégia de Modelos](#estratégia-de-modelos)
-- [Gerenciamento de Prompts e Resiliência](#gerenciamento-de-prompts-e-resiliência)
-- [Camada de Governança](#camada-de-governança)
-- [Fluxo HITL](#fluxo-hitl)
-- [Schema do Banco de Dados](#schema-do-banco-de-dados)
-- [Serviço de Cache](#serviço-de-cache)
-- [Referência da API](#referência-da-api)
-- [Deploy](#deploy)
+- [Referência Técnica](#referência-técnica)
+  - [Índice](#índice)
+  - [Implementação LangGraph](#implementação-langgraph)
+    - [Padrão Scatter-Gather](#padrão-scatter-gather)
+    - [Gerenciamento de Estado](#gerenciamento-de-estado)
+    - [Padrão DRY dos Nós — `_build_node_result()`](#padrão-dry-dos-nós--_build_node_result)
+  - [Estratégia de Modelos](#estratégia-de-modelos)
+    - [Seleção Dinâmica de Modelos](#seleção-dinâmica-de-modelos)
+    - [Configurações de Temperatura](#configurações-de-temperatura)
+  - [Gerenciamento de Prompts e Resiliência](#gerenciamento-de-prompts-e-resiliência)
+    - [Modelo de Execução Híbrido (hub\_fallback.py)](#modelo-de-execução-híbrido-hub_fallbackpy)
+  - [Camada de Governança](#camada-de-governança)
+    - [Rastreamento de Tokens](#rastreamento-de-tokens)
+    - [Serviço de Auditoria](#serviço-de-auditoria)
+  - [Fluxo HITL](#fluxo-hitl)
+    - [Ciclo de Vida](#ciclo-de-vida)
+  - [Schema do Banco de Dados](#schema-do-banco-de-dados)
+    - [`analysis_runs`](#analysis_runs)
+  - [Referência da API](#referência-da-api)
+    - [POST /analyze/stream](#post-analyzestream)
+  - [Deploy](#deploy)
+    - [Dockerfile](#dockerfile)
 
 ---
 
@@ -92,19 +105,24 @@ def _build_node_result(
     # 5. Retorna dict completo de governança
 ```
 
-**Antes:** Cada nó tinha ~48 linhas. **Depois:** Cada nó tem ~20 linhas.
-
 Exemplo de nó:
 ```python
 def panorama_node(state: TheologicalState):
     start = time.time()
-    model = get_panorama_model()
-    # ... constrói prompt + mensagens ...
-    response = model.invoke(messages)
+    response, raw, model_used, prompt_commit_hash = execute_with_fallback(
+        prompt_name="theological-agent-panorama-prompt",
+        format_vars={
+            "livro": state["bible_book"],
+            "capitulo": state["chapter"],
+            "versiculos": " ".join(state["verses"]),
+        },
+    )
+
     return _build_node_result(
-        state, "panorama_agent", ModelTier.FLASH, response, start,
+        state, "panorama_agent", model_used, response, start,
         output_field="panorama_content",
-        raw_response=response,
+        raw_response=raw,
+        prompt_commit_hash=prompt_commit_hash,
     )
 ```
 
@@ -112,29 +130,13 @@ def panorama_node(state: TheologicalState):
 
 ## Estratégia de Modelos
 
-### Arquitetura em 3 Camadas
+### Seleção Dinâmica de Modelos
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                   Atribuição de Modelos                       │
-├─────────────────┬──────────────────────┬─────────────────────┤
-│ LITE             │ FLASH                │ TOP                 │
-│ flash-lite       │ 2.5-flash            │ 3-flash-preview     │
-│ 10 RPM           │ 5 RPM                │ 5 RPM               │
-├─────────────────┼──────────────────────┼─────────────────────┤
-│ Intertextual     │ Panorama             │ Validador           │
-│                  │ Léxico               │ Sintetizador        │
-│                  │ Histórico            │                     │
-└─────────────────┴──────────────────────┴─────────────────────┘
-```
+O sistema não depende mais de camadas (tiers) hardcoded. A seleção é desacoplada da lógica core:
 
-### Cadeia de Fallback
-
-```
-gemini-3-flash-preview → gemini-2.5-flash → gemini-2.5-flash-lite → gemini-2.0-flash-lite
-```
-
-Se o modelo primário retorna 429 (rate limited) ou está depreciado, o cliente migra automaticamente para o próximo tier. O modelo efetivamente utilizado é registrado em `model_versions`.
+1.  **Metadados do Prompt**: O `model_name` é definido diretamente na configuração do prompt no LangSmith Hub.
+2.  **Frota Autônoma**: Diferentes agentes podem usar modelos distintos baseados em sua necessidade (ex: Pro para validação, Lite para tradução), configuráveis instantaneamente via UI.
+3.  **Logs de Governança**: A versão exata do modelo utilizada é capturada no dicionário `model_versions` no estado.
 
 ### Configurações de Temperatura
 
@@ -153,26 +155,18 @@ Se o modelo primário retorna 429 (rate limited) ou está depreciado, o cliente 
 
 A engenharia de prompts é desacoplada da lógica core via **LangSmith Prompt Hub**, garantindo agilidade sem necessidade de redeploy.
 
-### Modelo de Execução Híbrido
+### Modelo de Execução Híbrido (hub_fallback.py)
 
 1. **Primário (Hub):** O nó tenta baixar o prompt publicado mais recente do LangSmith.
-2. **Fallback (JSON Local):** Se a chamada ao Hub falhar (rede, 429, erros de chave de API), o sistema degrada automaticamente para uma réplica JSON local em `src/app/utils/fallbacks/`.
-3. **Utilitário de Resiliência:** O utilitário `hub_fallback.py` gerencia essa transição, garantindo que a `GOOGLE_API_KEY` obrigatória seja preservada mesmo quando o `secrets_from_env` do LangSmith falha.
+2. **Fallback (JSON Local):** Se a chamada ao Hub falhar (rede, 429, erros de chave de API), o sistema degrada automaticamente para uma réplica JSON local em `src/app/utils/fallbacks/prompts_fallback.json`.
+3. **Utilitário de Resiliência:** O utilitário `hub_fallback.py` gerencia essa transição, garantindo que a `GOOGLE_API_KEY` obrigatória seja preservada.
 
-### Rastreamento de Versão
+### Rastreamento de Versões (Version Tracking)
 
-Cada execução de prompt captura o **Hash de Commit do Prompt** para garantir auditabilidade total:
-- **Modo Hub:** Extrai o `lc_hub_commit_hash` dos metadados do LangSmith.
-- **Modo Fallback:** Usa o hash armazenado no `prompts_fallback.json` durante a última sincronização.
-- **Propagação:** O hash é injetado nos `reasoning_steps` e nos logs estruturados.
-
-### Script de Sincronização
-
-Um script utilitário `sync_prompts.py` é usado para atualizar o cache de fallback local:
-- Extrai templates de mensagens e configurações de modelo (temperatura/model_name).
-- Captura e armazena o hash de commit específico.
-- **Frequência:** Altamente recomendado executar este script durante o CI/CD para garantir que o JSON local reflita os prompts mais recentes aprovados em produção no Hub.
-
+Cada execução de prompt captura o **Hash do Commit do Prompt** para garantir auditabilidade completa:
+- **Modo Hub:** Extrai `lc_hub_commit_hash` dos metadados do LangSmith.
+- **Modo Fallback:** Usa o hash armazenado em `prompts_fallback.json` durante a última sincronização.
+- **Propagação:** O hash é injetado nos `reasoning_steps` e logs estruturados.
 
 ---
 
@@ -180,59 +174,14 @@ Um script utilitário `sync_prompts.py` é usado para atualizar o cache de fallb
 
 ### Rastreamento de Tokens
 
-Extraído do `usage_metadata` em cada resposta do LLM (custo zero adicional):
-
-```python
-def extract_token_usage(response) -> dict:
-    if hasattr(response, "usage_metadata") and response.usage_metadata:
-        return {
-            "input": response.usage_metadata.input_tokens,
-            "output": response.usage_metadata.output_tokens,
-        }
-    return {}
-```
-
-### Trilha de Raciocínio (Reasoning Steps)
-
-Cada nó adiciona um passo de raciocínio ao estado:
-
-```json
-[
-  {"node": "panorama_agent", "model": "gemini-2.5-flash", "tokens": {"input": 1200, "output": 3400}, "duration_ms": 8500},
-  {"node": "lexical_agent", "model": "gemini-2.5-flash", "tokens": {"input": 980, "output": 4100}, "duration_ms": 12300},
-  {"node": "theological_validator", "model": "gemini-3-flash-preview", "risk_level": "low", "alerts": [], "duration_ms": 6200}
-]
-```
-
-### Logging Estruturado
-
-Logs formatados em JSON com correlação `run_id` para rastreamento entre nós:
-
-```json
-{
-  "timestamp": "2026-02-15T04:13:01Z",
-  "level": "INFO",
-  "logger": "app.agent.build",
-  "message": "panorama_agent completed",
-  "event": "node_complete",
-  "node": "panorama_agent",
-  "model": "gemini-2.5-flash",
-  "prompt_commit_hash": "a7b2c...",
-  "tokens": {"input": 1200, "output": 3400},
-  "duration_ms": 8500,
-  "run_id": "a1b2c3d4"
-}
-```
-
-> **Exemplo Real:** Veja [`samples/`](../samples/) para logs de entrada/saída reais mostrando uso de tokens e passos de raciocínio.
-```
+Extraído do `usage_metadata` em cada resposta do LLM (custo zero adicional).
 
 ### Serviço de Auditoria
 
 Todo run de análise é persistido na tabela `analysis_runs`:
-- Sucesso: metadados completos (tokens, modelos, duração, nível de risco)
-- Falha: mensagem de erro, traceback, metadados parciais
-- Usa UPSERT para idempotência (mesmo `run_id` → atualiza, não duplica)
+- Flag de sucesso (`success` boolean).
+- Metadados completos (tokens, modelos, duração, nível de risco).
+- Usa UPSERT para idempotência.
 
 ---
 
@@ -249,14 +198,14 @@ sequenceDiagram
     participant DB as Supabase
     participant E as Email
 
-    U->>API: POST /analyze
+    U->>API: POST /analyze/stream
     API->>G: Executa grafo
     G->>V: Valida análise
     V-->>G: risk_level = "high"
     G->>DB: Persiste estado completo (hitl_reviews)
     G->>E: Envia email de notificação
     G-->>API: hitl_status = "pending"
-    API-->>U: 200 + run_id + hitl_status
+    API-->>U: stream NDJSON finalizado + run_id + hitl_status
 
     Note over U: Revisor recebe email
 
@@ -268,103 +217,35 @@ sequenceDiagram
     API-->>U: 200 + análise final
 ```
 
-### Endpoint de Aprovação
-
-O endpoint de aprovação reconstrói o estado do agente a partir do banco de dados e executa **apenas o sintetizador** — evitando re-execução redundante de todos os agentes:
-
-```python
-@router.post("/hitl/{run_id}/approve")
-async def approve_review(run_id: str, body: HITLApproveRequest):
-    # 1. Carrega revisão + conteúdo do DB
-    # 2. Opcionalmente aplica edições
-    # 3. Constrói estado LangGraph dos registros do DB
-    # 4. Executa synthesizer_node() apenas
-    # 5. Atualiza status da revisão
-    # 6. Retorna análise final
-```
-
 ---
 
 ## Schema do Banco de Dados
 
-Quatro tabelas no Supabase PostgreSQL:
-
 ### `analysis_runs`
 | Coluna | Tipo | Descrição |
-|--------|------|-----------|
+|--------|------|-------------|
 | `run_id` | VARCHAR(36) PK | UUID de cada execução |
-| `book` | VARCHAR(50) | Livro bíblico |
+| `book` | VARCHAR(10) | Abreviação do livro bíblico |
 | `chapter` | INTEGER | Número do capítulo |
-| `verses` | JSONB | Lista de versículos |
-| `modules` | JSONB | Módulos selecionados |
-| `status` | VARCHAR(20) | success / failure / hitl_pending |
+| `verses` | INTEGER[] | Lista de versículos |
+| `selected_modules` | TEXT[] | Módulos selecionados |
+| `model_versions` | JSONB | Modelos usados por nó |
+| `prompt_versions` | JSONB | Versões (commit hash) dos prompts por nó |
 | `tokens_consumed` | JSONB | Uso de tokens por nó |
-| `model_versions` | JSONB | Nomes de modelo por nó |
+| `reasoning_steps` | JSONB | Trilha de telemetria/raciocínio por nó |
+| `risk_level` | VARCHAR(10) | low / medium / high |
+| `success` | BOOLEAN | Indica se o run completou com sucesso |
+| `hitl_status` | VARCHAR(20) | pending / approved / edited / null |
 | `duration_ms` | INTEGER | Tempo total de execução |
+| `final_analysis` | TEXT | Análise final gerada |
 | `error` | TEXT | Mensagem de erro (apenas falhas) |
 | `created_at` | TIMESTAMPTZ | Timestamp da execução |
-
-### `analysis_cache`
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| `cache_key` | VARCHAR(64) PK | SHA-256 da entrada |
-| `result` | JSONB | Resposta cacheada |
-| `hit_count` | INTEGER | Contador atômico de hits |
-| `created_at` | TIMESTAMPTZ | Criação da entrada de cache |
-| `last_hit_at` | TIMESTAMPTZ | Último acesso |
-
-### `hitl_reviews`
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| `run_id` | VARCHAR(36) PK | Link para analysis_runs |
-| `status` | VARCHAR(20) | pending / approved / edited |
-| `risk_level` | VARCHAR(10) | high / medium / low |
-| `alerts` | JSONB | Alertas do validador |
-| `content` | JSONB | Todas as saídas dos agentes |
-| `metadata` | JSONB | Versões de modelo, tokens, raciocínio |
-| `created_at` | TIMESTAMPTZ | Criação da revisão |
-| `reviewed_at` | TIMESTAMPTZ | Conclusão da revisão |
-
-### `graph_run_traces`
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| `run_id` | VARCHAR(36) UNIQUE FK | Link para `analysis_runs.run_id` |
-| `langsmith_run_id` | VARCHAR(36) | Identificador do trace/run no LangSmith |
-| `storage_path` | TEXT | Caminho do objeto no Supabase Storage |
-| `size_bytes` | INTEGER | Tamanho do arquivo de trace salvo |
-| `status` | VARCHAR(20) | uploaded / failed / skipped |
-| `error_message` | TEXT | Motivo de falha/skip quando aplicável |
-| `created_at` | TIMESTAMPTZ | Criação do registro de trace |
-
-### Comportamento de Runtime da Exportação de Trace
-
-- `POST /analyze` (sucesso ou HITL pendente): a exportação do trace é agendada como tarefa em background no FastAPI para reduzir latência de resposta.
-- `POST /analyze` (caminho HTTP 500): a exportação do trace é tentada de forma síncrona antes de retornar o erro.
-- Fallback direct-call do Streamlit (quando a API está indisponível): a exportação do trace é tentada de forma síncrona em modo best-effort.
-
----
-
-## Serviço de Cache
-
-### Geração de Chave
-
-```python
-def _build_cache_key(book, chapter, verses, modules):
-    raw = f"{book}:{chapter}:{sorted(verses)}:{sorted(modules)}"
-    return hashlib.sha256(raw.encode()).hexdigest()
-```
-
-### Segurança contra Race Conditions
-
-Escritas no cache usam `INSERT ... ON CONFLICT DO NOTHING` — se duas requisições idênticas executam simultaneamente, apenas a primeira escrita é aceita, e a segunda leitura obtém o resultado cacheado.
-
-A contagem de hits usa `UPDATE SET hit_count = hit_count + 1` (operação atômica do PostgreSQL).
 
 ---
 
 ## Referência da API
 
-### POST /analyze
+### POST /analyze/stream
 
 **Requisição:**
 ```json
@@ -372,38 +253,12 @@ A contagem de hits usa `UPDATE SET hit_count = hit_count + 1` (operação atômi
   "book": "Sl",
   "chapter": 23,
   "verses": [1, 2, 3],
-  "selected_modules": ["panorama", "exegese", "teologia"]
+  "selected_modules": ["panorama", "exegese", "historical"]
 }
 ```
 
-**Resposta (200):**
-```json
-{
-  "final_analysis": "# Estudo Teológico...\n\n## Panorama...",
-  "from_cache": false,
-  "run_id": "a1b2c3d4-...",
-  "tokens_consumed": {"panorama_agent": {"input": 1200, "output": 3400}},
-  "model_versions": {"panorama_agent": "gemini-2.5-flash"},
-  "risk_level": "low",
-  "hitl_status": null
-}
-```
-
-**Resposta (200 — HITL Pendente):**
-```json
-{
-  "final_analysis": "",
-  "hitl_status": "pending",
-  "run_id": "a1b2c3d4-...",
-  "risk_level": "high"
-}
-```
-
-### Validação de Input (Pydantic)
-
-- `book`: Sanitizado (strip, title-case)
-- `verses`: Deduplicados, ordenados
-- `selected_modules`: Deve ser subconjunto de `["panorama", "exegese", "teologia"]`
+**Resposta (stream NDJSON):**
+Stream de eventos JSON delimitados por nova linha com atualizações de progresso. O evento final inclui resultado e metadados de governança.
 
 ---
 
@@ -419,44 +274,3 @@ RUN pip install --no-cache-dir -r requirements-api.txt
 COPY src/ ./src/
 CMD uvicorn main:app --host 0.0.0.0 --port ${PORT} --app-dir src
 ```
-
-### render.yaml
-
-Blueprint do Render com variáveis de ambiente. Secrets (`sync: false`) devem ser configurados manualmente no dashboard:
-
-- `GOOGLE_API_KEY`, `DB_URL`, `LANGSMITH_API_KEY`, `SUPABASE_PROJECT`, `SUPABASE_SECRET_KEY`
-- `SMTP_USER`, `SMTP_PASSWORD`, `HITL_REVIEWER_EMAIL`
-
-### Keep-Alive (GitHub Actions)
-
-```yaml
-on:
-  schedule:
-    - cron: '*/14 * * * *'   # A cada 14 minutos
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - run: curl -fsS "${{ secrets.RENDER_API_URL }}/health"
-```
-
-**Configuração:** Adicione `RENDER_API_URL` como secret em GitHub → Settings → Secrets → Actions.
-
-### Referência de Variáveis de Ambiente
-
-| Variável | Obrigatória | Descrição |
-|----------|-------------|-----------|
-| `GOOGLE_API_KEY` | ✅ | Chave da API Google Gemini |
-| `DB_URL` | ✅ | String de conexão PostgreSQL Supabase |
-| `SMTP_HOST` | ✅ | Servidor SMTP (ex: smtp.gmail.com) |
-| `SMTP_PORT` | ✅ | Porta SMTP (587 para TLS) |
-| `SMTP_USER` | ✅ | Usuário / email SMTP |
-| `SMTP_PASSWORD` | ✅ | App Password do Gmail |
-| `HITL_REVIEWER_EMAIL` | ✅ | Email do revisor para alertas HITL |
-| `LANGSMITH_API_KEY` | ❌ | Tracing via LangSmith |
-| `LANGCHAIN_TRACING_V2` | ❌ | Ativar tracing (`true`) |
-| `LANGCHAIN_PROJECT` | ❌ | Nome do projeto no LangSmith |
-| `SUPABASE_PROJECT` | ❌ | URL do projeto Supabase (para export de trace) |
-| `SUPABASE_SECRET_KEY` | ❌ | Chave service role do Supabase (para export de trace) |
-| `SUPABASE_TRACES_BUCKET` | ❌ | Nome do bucket Supabase para traces JSON (padrão `traces`) |
-| `API_BASE_URL` | ❌ | Override da URL Streamlit → API |

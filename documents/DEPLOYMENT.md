@@ -39,10 +39,15 @@ Render is used to host the FastAPI application.
    | Key | Value | Description |
    |-----|-------|-------------|
    | `GOOGLE_API_KEY` | `AIzaSy...` | Gemini API Key |
-   | `DB_URL` | `postgresql://...` | Supabase Transaction Pooler URL (Port 6543). **Do NOT add params**. |
+   | `DB_URL` | `postgresql://...` | Supabase Transaction Pooler URL (Port 6543). |
    | `LANGCHAIN_TRACING_V2` | `true` | Enable LangSmith tracing |
    | `LANGCHAIN_PROJECT` | `TheologicalAgent-Prod` | LangSmith Project Name |
    | `LANGSMITH_API_KEY` | `lsv2_...` | LangSmith API Key |
+   | `SMTP_HOST` | `smtp.gmail.com` | SMTP Server for HITL alerts |
+   | `SMTP_PORT` | `587` | SMTP Port |
+   | `SMTP_USER` | `yours@gmail.com` | SMTP Username |
+   | `SMTP_PASSWORD` | `xxxx xxxx` | App Password |
+   | `HITL_REVIEWER_EMAIL` | `reviewer@...` | Target email for alerts |
    | `PORT` | `10000` | Render expects the app to bind to this port |
 
 ### Step 3: Deploy
@@ -54,7 +59,7 @@ Render is used to host the FastAPI application.
 
 **Verification:**
 - Visit `https://your-service-name.onrender.com/health`.
-- Expect: `{"status": "healthy", "database": "connected"}`.
+- Expect fields like: `{"status": "healthy", "database": "connected", "uptime_seconds": ..., "version": ...}`.
 
 ---
 
@@ -76,44 +81,19 @@ Go to **Advanced Settings** -> **Secrets** and add:
 API_BASE_URL = "https://your-service-name.onrender.com"
 
 # Optional: Tracing for the frontend process locally (if running locally)
-# Not strictly needed for Cloud if API handles the logic
 LANGCHAIN_TRACING_V2 = "true"
 LANGCHAIN_PROJECT = "TheologicalAgent-Frontend"
 LANGSMITH_API_KEY = "lsv2_..."
 ```
 
-### Step 3: Deploy
-- Click **Deploy**.
-- The app will install dependencies from `requirements.txt` (root) which includes `streamlit`.
-
 ---
 
 ## 🛠️ Troubleshooting & Key Configurations
 
-### Database Connection (Crucial!)
-- **Issue:** `prepared statement ... already exists` or `cannot insert multiple commands`.
-- **Cause:** Incompatibility between `psycopg` default prepared statements and Supabase Transaction Pooler (PgBouncer).
-- **Solution:** The codebase is already patched.
-  - `connection.py`: Sets `prepare_threshold=None` to disable prepared statements.
-  - `init_db.py`: Uses `prepare=False` for DDL statements.
-  - **Do NEVER change** `prepare_threshold` back to `0` or default.
-
-### Docker Build
-- **Issue:** `NAA.json` not found or Bible verses missing.
-- **Solution:** The `Dockerfile` must strictly include:
-  ```dockerfile
-  COPY resources /app/resources
-  ```
-  And `.dockerignore` **must not** ignore the `resources/` folder.
+### Database Connection
+- **Issue:** `prepared statement ... already exists`.
+- **Solution:** The codebase is already patched. `connection.py` sets `prepare_threshold=None` to disable prepared statements, ensuring compatibility with Supabase Pooler.
 
 ### Cold Start
 - Render Free Tier spins down after inactivity.
-- On first request, the Streamlit app might timeout (5s default).
-- **Fix:** Access the API `/health` endpoint manually to wake it up before presenting the demo. Future updates will increase frontend timeout.
-
----
-
-## 🔄 CI/CD Pipeline
-
-- **Backend:** Pushing to `main` triggers automatic redeploy on Render.
-- **Frontend:** Pushing to `main` triggers automatic redeploy on Streamlit Cloud.
+- **Fix:** Access the API `/health` endpoint manually to wake it up before presenting the demo.

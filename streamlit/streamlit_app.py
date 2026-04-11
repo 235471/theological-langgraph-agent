@@ -76,10 +76,10 @@ def _build_payload():
             modules.append("panorama")
         if st.session_state.get("mod_exegese"):
             modules.append("exegese")
-        if st.session_state.get("mod_teologia"):
-            modules.append("teologia")
+        if st.session_state.get("mod_historica"):
+            modules.append("historical")
     else:
-        modules = ["panorama", "exegese", "teologia"]
+        modules = ["panorama", "exegese", "historical"]
 
     return {
         "book": book,
@@ -131,7 +131,7 @@ with st.container():
         c3_1, c3_2, c3_3 = col3.columns(3)
         c3_1.checkbox("Panorama", key="mod_panorama")
         c3_2.checkbox("Exegese", key="mod_exegese")
-        c3_3.checkbox("Teologia", key="mod_teologia")
+        c3_3.checkbox("Histórica", key="mod_historica")
     else:
         col3.info("Todos os módulos serão executados.")
 

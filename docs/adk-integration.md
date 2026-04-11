@@ -19,7 +19,7 @@ Originally, we considered a two-pass approach:
 ### Latency vs Autonomy Trade-off
 Why ADK instead of a simple REST search API (like Tavily) passed into LangChain?
 - **Pro:** Autonomy. The ADK decides *when* to search, reads the results, and can execute multiple remote calls (AFC) until it gathers enough lexical evidence to fulfill its exact prompt instructions.
-- **Con:** Latency. ADK requires creating session storage, invoking the internal Google Search gRPC tool, and managing its own event stream. A typical cold start takes ~15-20 seconds.
+- **Con:** Latency. ADK requires creating session storage, invoking the internal Google Search tool, and managing its own event stream. A typical cold start takes ~15-20 seconds.
 
 ## Implementation Mechanics
 
@@ -31,31 +31,24 @@ The ADK `Runner` operates exclusively asynchronously and relies heavily on event
 
 To bridge this, we spawn a daemon `threading.Thread` containing a fresh event loop specifically for the ADK payload. 
 
-**The Timeout Guard:** If the ADK gRPC process hangs internally, `asyncio.wait_for` might not catch it. We enforce the fallback SLA directly at the synchronization boundary by calling `thread.join(timeout=...)`.
+**The Timeout Guard:** If the ADK gRPC process hangs internally, `asyncio.wait_for` might not catch it. We enforce the fallback SLA directly at the synchronization boundary by calling `thread.join(timeout=35)`.
 
 ### 2. Telemetry Extraction (Tokens & Search Calls)
 
 When bypassing `langchain`, we lose its automatic token-counting features. Left untreated, the Lexical Agent would appear as a "black box" in our audit logs, corrupting ROI governance.
 
-We extract the metrics manually from the ADK's binary event payload tree:
-```python
-def _extract_tokens_from_payload(payload):
-    # Recursively searches the ADK event tree for `prompt_token_count` and
-    # `candidates_token_count`. Prevents double counting metadata structs
-    # that appear multiple times in the payload graph using the `id()` hash.
-```
-This parsed dictionary is passed up to `build.py` where it populates `usage_metadata` mock objects, keeping the LangGraph completely isolated from the ADK SDK details.
+We extract the metrics manually from the ADK's binary event payload tree. This parsed dictionary is passed up to `build.py` where it populates governance fields, keeping the LangGraph isolated from the ADK SDK details.
 
 ### 3. LangSmith Tracing
 
 Even though the ADK agent doesn't natively integrate with LangSmith, we've restored observability by injecting:
 ```python
-@traceable(name="adk_lexical_agent", run_type="chain")
+@traceable(name="adk_lexical_agent", run_type="llm")
 ```
-Because the parent LangGraph execution maintains standard Python context variables, LangSmith automatically associates this ADK execution as a child `chain` span to the main analysis trace.
+LangSmith automatically associates this ADK execution as a child span to the main analysis trace.
 
 ### 4. Seamless Fallback Resilience
 
-If the ADK single-pass encounters any anomaly—a network timeout (exceeding 15-25 seconds), an empty response, or poor formatting missing the necessary markdown headers—the error is safely swallowed and logged.
+If the ADK single-pass encounters any anomaly—a network timeout (exceeding 35 seconds), an empty response, or poor formatting—the error is safely caught and logged.
 
-The `lexical_node` then immediately falls back to execute `prompt_name="theological-agent-lexical-prompt-legacy"` via LangChain, skipping grounding and ensuring the user always receives a response.
+The `lexical_node` then immediately falls back to execute a standard LLM call via the **Unified Client**, skipping grounding and ensuring the user always receives a response.

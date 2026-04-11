@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 MODULE_MAPPING = {
     "panorama": "panorama",
     "exegese": "exegese",   # maps to lexical_agent
-    "teologia": "historical",  # maps to historical_agent (teologia histórica)
+    "historical": "historical",  # maps to historical_agent
 }
 
 

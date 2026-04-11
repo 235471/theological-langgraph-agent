@@ -38,9 +38,9 @@ async def analyze_text(request: AnalyzeRequest, background_tasks: BackgroundTask
     - **book**: Book abbreviation (e.g., "Sl" for Psalms)
     - **chapter**: Chapter number (1-indexed)
     - **verses**: List of verse numbers to analyze
-    - **selected_modules**: List of modules to run. Options: "panorama", "exegese", "teologia"
+    - **selected_modules**: List of modules to run. Options: "panorama", "exegese", "historical"
 
-    For "Full" mode, send all modules: ["panorama", "exegese", "teologia"]
+    For "Full" mode, send all modules: ["panorama", "exegese", "historical"]
     For "Custom" mode, send at least one module.
 
     Returns governance metadata alongside the analysis result.

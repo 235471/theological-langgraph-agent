@@ -39,18 +39,18 @@ Biblical exegesis traditionally requires hours of manual research across lexicon
 
 ```mermaid
 graph TD
-    R[Router Function] -->|Send| P[Panorama Agent<br/>FLASH]
-    R -->|Send| L[Lexical Agent<br/>ADK + FLASH]
-    R -->|Send| H[Historical Agent<br/>FLASH]
-    R -->|Send| I[Intertextual Agent<br/>LITE]
+    R[Router Function] -->|Send| P[Panorama Agent]
+    R -->|Send| L[Lexical Agent<br/>ADK + Grounding]
+    R -->|Send| H[Historical Agent]
+    R -->|Send| I[Intertextual Agent]
 
     P --> J[Join Node]
     L --> J
     H --> J
     I --> J
 
-    J --> V[Theological Validator<br/>TOP]
-    V -->|low / medium risk| S[Synthesizer<br/>TOP]
+    J --> V[Theological Validator]
+    V -->|low / medium risk| S[Synthesizer]
     V -->|high risk| HITL[HITL Pending<br/>Email Alert]
 
     S --> OUT[Final Analysis]
@@ -70,17 +70,15 @@ graph TD
 
 ## AI Engineering Decisions
 
-### 3-Tier Model Strategy
+### Dynamic Model Selection
 
-Not every agent needs the same model. We distribute load across three tiers to maximize throughput within free-tier rate limits:
+The system adopts a flexible model strategy where model attributes are decoupled from the core logic. Model selection is handled dynamically via the **LangSmith Prompt Hub**:
 
-| Tier | Model | RPM | Assigned To | Rationale |
-|------|-------|-----|-------------|-----------|
-| **LITE** | `gemini-2.5-flash-lite` | 10 | Intertextual | Always runs; needs highest throughput |
-| **FLASH** | `gemini-2.5-flash` | 5 | Panorama, Lexical, Historical | Good quality-to-speed ratio |
-| **TOP** | `gemini-3-flash-preview` | 5 | Validator, Synthesizer | Critical path; needs best reasoning |
+- **Agent Autonomy**: Each agent node pulls its preferred model configuration directly from the published prompt metadata or the local `prompts_fallback.json`.
+- **Unified Client**: A centralized `get_llm_client` function manages instantiation for the specific model passed by the graph node.
+- **Zero-Downtime Updates**: Model versions and parameters can be swapped in the LangSmith UI without changing a single line of code or redeploying the backend.
 
-Each tier has a **fallback chain** for deprecation resilience: `TOP → FLASH → LITE → gemini-2.0-flash-lite`.
+Every execution records the specific model version used in the `model_versions` state field for full transparency.
 
 ### Human-in-the-Loop (HITL)
 
@@ -130,7 +128,7 @@ For complete governance, auditability, debugging, and reproducibility, the syste
 The Lexical Agent leverages Google's **Agent Development Kit (ADK)** to perform web-grounded exegesis. Rather than splitting search and generation into multiple LLM calls, we implemented a **single-pass ADK architecture**:
 - The ADK autonomously searches for academic/lexicographic sources and synthesizes the final markdown report.
 - We maintain full observability by deeply extracting the `usage_metadata` from the ADK's binary event stream and piping it into our central LangGraph telemetry.
-- If the ADK exceeds the `35000ms` timeout or fails to return high-quality content, the node seamlessly falls back to a fast, non-grounded legacy LangChain prompt.
+- If the ADK exceeds the configured timeout (`LEXICAL_GROUNDING_TIMEOUT_MS`, default `35000ms`) or fails to return high-quality content, the node seamlessly falls back to a fast, non-grounded legacy LangChain prompt.
 
 > 📄 **Deep Dive:** See [ADK Integration Reference](docs/adk-integration.md) for specifics on the threading syncs, telemetry extraction, and the fallback pattern.
 
@@ -152,14 +150,13 @@ Identical requests (same book + chapter + verses + modules) are cached using **S
 ## Key Features
 
 - **Parallel Agent Execution** — Scatter-gather via LangGraph `Send` API
-- **Hybdrid LLM Output** — Raw Markdown for analysis nodes + Pydantic validation for governance
+- **Hybrid LLM Output** — Raw Markdown for analysis nodes + Pydantic validation for governance
 - **HITL Gating** — Risk-based conditional edge with email alerts
 - **Caching** — SHA-256 dedup with atomic hit counting
 - **Audit Trail** — Every run persisted (success + failure) to PostgreSQL
 - **JSON/YAML Structured Logging** — Machine-parseable logs with `run_id` correlation (see [`samples/`](samples/))
     > **Engineering Insight:** The architecture is **Observable-by-Design**. Through structured logs (JSON/YAML), we capture atomic token consumption and latency for every agent. This enables not just security auditing (risk_level), but precise financial analysis (ROI) and continuous UX optimization.
 - **Prompt Hub + Fallback** — LangSmith managed prompts with zero-downtime offline JSON replica
-- **Fallback Chain** — Automatic model fallback on 429/deprecation
 - **Docker + Render** — Production deployment with keep-alive cron
 - **LangSmith Integration** — Full observability and tracing
 
@@ -249,7 +246,7 @@ The project includes a `Dockerfile` and `render.yaml` for one-click deploy:
 
 ## Output Example
 
-**Input:** João 8:31-34 (Full mode: panorama + exegese + teologia)
+**Input:** João 8:31-34 (Full mode: panorama + exegese + historical)
 
 **Output Preview:**
 
@@ -284,10 +281,9 @@ theological-langgraph-agent/
 │   │   ├── client/
 │   │   │   └── client.py              # 3-tier model strategy + fallback chain
 │   │   ├── controller/
-│   │   │   ├── analyze_controller.py   # POST /analyze
+│   │   │   ├── analyze_controller.py   # POST /analyze/stream
 │   │   │   ├── bible_controller.py     # GET /bible/{abbrev}/{chapter}/verses
-│   │   │   ├── hitl_controller.py      # HITL endpoints (pending, approve, edit)
-│   │   │   └── debug_controller.py     # Health & debug endpoints
+│   │   │   └── hitl_controller.py      # HITL endpoints (pending, approve, edit)
 │   │   ├── service/
 │   │   │   ├── analysis_service.py     # Orchestrates cache → agent → audit
 │   │   │   ├── bible_service.py        # Bible data access
@@ -330,13 +326,13 @@ theological-langgraph-agent/
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/analyze` | Run theological analysis |
+| `POST` | `/analyze` | Run theological analysis (single response JSON) |
+| `POST` | `/analyze/stream` | Run theological analysis (NDJSON stream) |
 | `GET` | `/bible/{abbrev}/{chapter}/verses` | Get chapter verses |
 | `GET` | `/hitl/pending` | List pending HITL reviews |
 | `GET` | `/hitl/{run_id}` | Get review details |
 | `POST` | `/hitl/{run_id}/approve` | Approve or edit-and-approve |
-| `GET` | `/health` | Health check (DB, uptime, version) |
-| `GET` | `/debug/test-llm` | Test LLM connectivity |
+| `GET` | `/health` | Health check (DB, `uptime_seconds`, version) |
 
 Full API docs: `http://localhost:8000/docs`
 
